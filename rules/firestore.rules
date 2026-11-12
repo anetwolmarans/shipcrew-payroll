@@ -1,0 +1,234 @@
+rules_version = '2';
+
+// ============================================================================
+// ShipCrew Payroll — Firebase Firestore Security Rules (Phase 2)
+// ----------------------------------------------------------------------------
+// PLAIN ENGLISH: these rules run on GOOGLE'S SERVERS and are the real
+// security wall. Even if someone changes the app's code in their browser,
+// these rules decide what they may actually read or write.
+//
+// Design principles:
+//   1. DENY BY DEFAULT — anything not explicitly allowed is blocked.
+//   2. ROLES LIVE IN THE users COLLECTION — a user's role is read from
+//      users/{uid}, which only system administrators can change.
+//   3. CREW SEE ONLY THEIR OWN DATA — enforced here, not just in the menu.
+//   4. WRITE ACCESS opens phase by phase (least privilege). Phase 2 opens:
+//      crew & banking (payroll/system admins), vessels, trips and
+//      assignments (vessel managers/system admins), and clock events
+//      (crew, for themselves, with validation).
+//   5. STATUTORY RULES (tax/SSC formulas) can NEVER be edited from the app —
+//      not even by administrators. They change only via controlled,
+//      versioned releases from the Firebase console / Admin SDK.
+//   6. HISTORY IS SACRED: audit log, assignments and clock events are
+//      append-only or strictly constrained — nobody deletes history.
+//
+// How to deploy: docs/01-firebase-setup.md, step 5.
+// ============================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------- helpers ----------------
+    function signedIn() { return request.auth != null; }
+    function userData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function hasRole(role) { return signedIn() && userData().role == role; }
+    function isSystemAdmin() { return hasRole('system_admin'); }
+    function isPayrollAdmin() { return hasRole('payroll_admin'); }
+    function isVesselManager() { return hasRole('vessel_manager'); }
+    function isSupervisor() { return hasRole('supervisor'); }
+    function isAuditor() { return hasRole('auditor'); }
+    function isStaff() {
+      return isSystemAdmin() || isPayrollAdmin() || isVesselManager() || isSupervisor() || isAuditor();
+    }
+    function isCrew() { return hasRole('crew'); }
+    function unchanged(field) { return request.resource.data[field] == resource.data[field]; }
+
+    // ---------------- users ----------------
+    // Phase 2: system administrators create and manage logins in the app.
+    // The creator's role is re-checked HERE on the server on every request.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+      allow create: if isSystemAdmin()
+        && request.resource.data.email is string
+        && request.resource.data.fullName is string
+        && request.resource.data.status == 'active'
+        && request.resource.data.role in ['system_admin', 'payroll_admin', 'vessel_manager', 'supervisor', 'crew', 'auditor'];
+      allow update: if isSystemAdmin()
+        && unchanged('createdAt') && unchanged('createdBy')
+        && request.resource.data.role in ['system_admin', 'payroll_admin', 'vessel_manager', 'supervisor', 'crew', 'auditor'];
+      allow delete: if false;   // accounts are disabled, never deleted
+    }
+
+    // ---------------- roles reference (read-only) ----------------
+    match /roles/{roleId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // ---------------- companies ----------------
+    match /companies/{companyId} {
+      allow read: if signedIn();
+      allow create, update: if isSystemAdmin();
+      allow delete: if false;
+    }
+
+    // ---------------- crew & banking (confidential) ----------------
+    // Phase 2: the crew register is managed in-app by the System and Payroll
+    // Administrators. Created/updated records may not rewrite their own
+    // creation stamps. Crew members still see ONLY their own record.
+    match /crew/{crewId} {
+      allow read: if signedIn() && (isStaff() || (isCrew() && resource.data.userId == request.auth.uid));
+      allow create: if isSystemAdmin() || isPayrollAdmin();
+      allow update: if (isSystemAdmin() || isPayrollAdmin())
+        && unchanged('createdAt') && unchanged('createdBy');
+      allow delete: if false;   // crew records are ended, never deleted
+    }
+    match /crew_banking/{crewId} {
+      // Bank details are extra sensitive: payroll/system admins and the
+      // owning crew member only. Nobody else — not even other staff.
+      allow read: if signedIn() && (isSystemAdmin() || isPayrollAdmin()
+        || (isCrew() && get(/databases/$(database)/documents/crew/$(crewId)).data.userId == request.auth.uid));
+      allow create, update: if isSystemAdmin() || isPayrollAdmin();
+      allow delete: if false;
+    }
+
+    // ---------------- vessels / trips / assignments ----------------
+    // Phase 2: managed in-app by the Vessel Manager and System Administrator.
+    match /vessels/{vesselId} {
+      allow read: if signedIn();
+      allow create, update: if isSystemAdmin() || isVesselManager();
+      allow delete: if false;   // vessels are laid up (inactive), never deleted
+    }
+    match /trips/{tripId} {
+      allow read: if signedIn();
+      allow create, update: if isSystemAdmin() || isVesselManager();
+      allow delete: if false;   // trips close; only truly empty planned trips may be removed
+    }
+    match /assignments/{assignmentId} {
+      allow read: if signedIn() && (isStaff() || resource.data.userId == request.auth.uid);
+      allow create, update: if isSystemAdmin() || isVesselManager();
+      allow delete: if false;   // assignment history is permanent
+    }
+
+    // ---------------- clocking & work records ----------------
+    // Phase 2: a crew member may create ONLY their own clock events, and may
+    // close (clock out) their own still-open event. Nobody can change when a
+    // clock-in happened, whose event it is, or delete an event.
+    match /clock_events/{eventId} {
+      allow read: if signedIn() && (isStaff() || resource.data.userId == request.auth.uid);
+      allow create: if isCrew()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.clockInAt is string
+        && (request.resource.data.clockOutAt == null
+            || (request.resource.data.clockOutAt is string
+                && request.resource.data.clockOutAt > request.resource.data.clockInAt));
+      allow update: if isCrew()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && unchanged('clockInAt') && unchanged('employeeId') && unchanged('tripId')
+        && !resource.data.clockOutAt;   // only while still open — a closed event is final
+      allow delete: if false;
+    }
+    match /work_records/{recordId} {
+      allow read: if signedIn() && (isStaff() || resource.data.userId == request.auth.uid);
+      allow write: if false;   // opens in Phase 4
+    }
+    match /break_records/{recordId} {
+      allow read: if signedIn();
+      allow write: if false;   // opens in Phase 4
+    }
+    match /rest_records/{recordId} {
+      allow read: if signedIn();
+      allow write: if false;   // opens in Phase 4
+    }
+
+    // ---------------- catch & quota ----------------
+    match /catch_records/{recordId} {
+      allow read: if signedIn();
+      allow write: if false;   // opens in Phase 4
+    }
+    match /quota_allocations/{recordId} {
+      allow read: if signedIn();
+      allow write: if false;   // opens in Phase 4
+    }
+
+    // ---------------- contracts & remuneration ----------------
+    match /contracts/{contractId} {
+      allow read: if signedIn() && (isSystemAdmin() || isPayrollAdmin() || isAuditor()
+        || (isCrew() && resource.data.userId == request.auth.uid));
+      allow write: if false;   // opens in Phase 5 (effective-dated, audited)
+    }
+    match /remuneration_rules/{ruleId} {
+      allow read: if signedIn() && (isSystemAdmin() || isPayrollAdmin() || isAuditor());
+      allow write: if false;   // opens in Phase 5
+    }
+
+    // ---------------- STATUTORY RULES (locked) ----------------
+    // Tax, SSC and labour-law formulas are never editable from the app.
+    // Updates arrive only as controlled, versioned releases verified against
+    // official sources (see ARCHITECTURE.md — "Statutory rules governance").
+    match /statutory_rules/{ruleId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // ---------------- payroll ----------------
+    match /payroll_periods/{periodId} {
+      allow read: if isStaff();
+      allow write: if false;   // opens in Phase 5
+    }
+    match /payroll_calculations/{calcId} {
+      allow read: if isStaff();
+      allow write: if false;   // opens in Phase 5
+    }
+    match /payroll_approvals/{approvalId} {
+      allow read: if isStaff();
+      allow write: if false;   // opens in Phase 5
+    }
+    match /payslips/{payslipId} {
+      allow read: if signedIn() && (isPayrollAdmin() || isSystemAdmin() || isAuditor() || isVesselManager()
+        || (isCrew() && resource.data.userId == request.auth.uid));
+      allow write: if false;   // opens in Phase 5 — approved payroll is never editable
+    }
+    match /deductions/{recordId} {
+      allow read: if isPayrollAdmin() || isSystemAdmin() || isAuditor();
+      allow write: if false;   // opens in Phase 5
+    }
+    match /allowances/{recordId} {
+      allow read: if isPayrollAdmin() || isSystemAdmin() || isAuditor();
+      allow write: if false;   // opens in Phase 5
+    }
+
+    // ---------------- audit log (append-only) ----------------
+    match /audit_logs/{eventId} {
+      allow create: if signedIn() && request.resource.data.actorId == request.auth.uid;
+      allow read: if isSystemAdmin() || isAuditor();
+      allow update, delete: if false;   // history is immutable
+    }
+
+    // ---------------- device registry ----------------
+    match /devices/{deviceId} {
+      allow read: if signedIn() && (isSystemAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'active';
+      allow update: if isSystemAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid
+            && unchanged('userId') && unchanged('status'));
+      allow delete: if isSystemAdmin();
+    }
+
+    // ---------------- sync idempotency ledger ----------------
+    match /sync_transactions/{txId} {
+      allow create: if signedIn();
+      allow read: if isSystemAdmin() || isAuditor();
+      allow update, delete: if false;
+    }
+
+    // ---------------- DEFAULT DENY ----------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ShipCrew Payroll — Fishing Fleet Payroll System</title>
+  <meta name="description" content="Offline-first ship crew payroll management system for Namibian fishing companies. Crew clocking, trips, catch, payroll and payslips — online or at sea." />
+  <meta name="theme-color" content="#0A2540" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icons/favicon.svg" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ShipCrew" />
+
+  <link rel="stylesheet" href="./css/styles.css" />
+
+  <!--
+    Firebase modular SDK (loaded from Google's CDN).
+    These files are cached by the service worker the first time the app
+    is used online, so afterwards they also work offline.
+    To upgrade the SDK, change the version number in ALL three URLs below
+    and in js/config.js (FIREBASE_SDK_VERSION), then redeploy.
+  -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Splash screen shown while the app boots -->
+  <div id="splash" class="splash">
+    <div class="splash-inner">
+      <svg class="splash-logo" viewBox="0 0 64 64" role="img" aria-label="ShipCrew Payroll anchor logo">
+        <circle cx="32" cy="15" r="7" fill="none" stroke="#14B8A6" stroke-width="4"/>
+        <line x1="32" y1="22" x2="32" y2="48" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round"/>
+        <line x1="21" y1="28" x2="43" y2="28" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+        <path d="M 12 38 A 20 20 0 0 0 52 38" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round"/>
+      </svg>
+      <h1 class="splash-title">ShipCrew Payroll</h1>
+      <p class="splash-sub">Fishing fleet payroll &mdash; Namibia</p>
+      <div class="spinner" aria-label="Loading"></div>
+      <p id="splash-status" class="splash-status">Preparing app&hellip;</p>
+    </div>
+  </div>
+
+  <!-- The whole application renders inside this element -->
+  <div id="app" class="app-root" hidden></div>
+
+  <noscript>
+    <div style="font-family: system-ui, sans-serif; padding: 40px; text-align: center; color: #16283A;">
+      <h1>JavaScript is turned off</h1>
+      <p>ShipCrew Payroll needs JavaScript to run. Please enable JavaScript in your browser settings and reload this page.</p>
+    </div>
+  </noscript>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
