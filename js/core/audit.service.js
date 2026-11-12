@@ -26,7 +26,16 @@ export const AUDIT_ACTIONS = {
   DEVICE_REGISTERED: 'device_registered',
   DEVICE_REVOKED: 'device_revoked',
   DEVICE_RENAMED: 'device_renamed',
+  DEVICE_REINSTATED: 'device_reinstated',
   SYNC_COMPLETED: 'sync_completed',
+  SYNC_CONFLICT: 'sync_conflict',
+  /* ---- Phase 3: device activation, PIN, revocation ---- */
+  DEVICE_PIN_SET: 'device_pin_set',
+  DEVICE_PIN_CHANGED: 'device_pin_changed',
+  DEVICE_PIN_REMOVED: 'device_pin_removed',
+  PIN_UNLOCK_SUCCESS: 'pin_unlock_success',
+  PIN_UNLOCK_FAILED: 'pin_unlock_failed',
+  PIN_LOCKOUT: 'pin_lockout',
   /* ---- Phase 2: Crew & Operations ---- */
   CREW_CREATED: 'crew_created',
   CREW_UPDATED: 'crew_updated',

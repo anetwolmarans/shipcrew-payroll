@@ -152,6 +152,48 @@ Legend: ✅ = the test passes when you see the expected result.
 |---|---|---|
 | O1 | **Audit Log** after doing H–M | Entries: `crew_created`, `vessel_created`, `trip_created`, `trip_status_changed`, `assignment_added`, `assignment_ended`, `user_created`, `user_disabled`… — plus (on the crew member's device) `clock_in` and `clock_out` |
 
+# Phase 3 tests — Offline & Synchronisation (P–R)
+
+## P. Device PIN (offline activation)
+
+| # | Do this | You should see |
+|---|---|---|
+| P1 | Sign in as admin → **Devices** | "This device" card with an **Offline device PIN** section showing "Not set" |
+| P2 | **Set up PIN** → enter `2468`, repeat it, Save | Green toast "Device PIN set — this device can now be unlocked offline."; badge shows "Enabled — offline unlock active"; Audit Log records `device_pin_set` |
+| P3 | **Change PIN** → wrong current PIN (`0000`), new `1357` | Red toast "The current PIN is not correct." — nothing changes |
+| P4 | **Change PIN** → correct current PIN `2468`, new `1357`, repeat | Green toast; "Last changed" updates; Audit Log records `device_pin_changed` |
+| P5 | Top bar → **padlock (Lock now)** | Lock screen appears at once: password box **and** a "Device PIN" box |
+| P6 | Lock screen: wrong PIN `9999` | Red error "Incorrect PIN. 4 attempts left…" (each wrong try counts down) |
+| P7 | Lock screen: five wrong PINs in a row | "Too many incorrect PIN attempts. The PIN is locked for 60 seconds — unlock with your password instead." (`pin_lockout` in the Audit Log) |
+| P8 | Lock screen: unlock with the **password** | Works immediately — the PIN lockout never blocks the password |
+| P9 | Lock now again → correct PIN `1357` | Green toast "Unlocked with the device PIN."; Audit Log records `pin_unlock_success` |
+| P10 | Devices → **Remove PIN** → wrong current PIN | Red toast, PIN stays enabled |
+| P11 | Devices → **Remove PIN** → correct PIN `1357` | Badge back to "Not set"; Audit Log records `device_pin_removed` |
+
+## Q. Device registry & revocation
+
+| # | Do this | You should see |
+|---|---|---|
+| Q1 | **Devices** → Registered devices table | Device name, type, owner, last seen, PIN On/Off, status badge ("this device" chip on your own row) |
+| Q2 | As a supervisor (has the Devices menu): **Revoke this device** → confirm | Signed out immediately; the sign-in screen shows a red **"This device has been revoked"** banner |
+| Q3 | Try signing in as a crew member on the revoked device | Blocked: "This device has been revoked by your administrator, so sign-in is blocked…" |
+| Q4 | Sign in as **System Administrator** on the revoked device | Works (administrators may sign in to fix it); Devices screen shows the revoked banner + **Reinstate this device** button |
+| Q5 | **Reinstate this device** → confirm | Status badge returns to Active; Audit Log records `device_revoked` and `device_reinstated` |
+| Q6 | Sign in as the crew member again | Works normally |
+| Q7 | (Live mode only) Admin on device A revokes device B from the registry | Device B signs itself out at its next sync check and can no longer sign in — records on it stay safe |
+
+## R. Sync engine (automatic, duplicate-proof, per-record states)
+
+| # | Do this | You should see |
+|---|---|---|
+| R1 | Dashboard → **Offline & synchronisation** card | This device (name + Active badge), PIN state, connection, "Waiting to sync", "Sync failed — kept: 0", "Synchronised so far", last sync time |
+| R2 | Clock in as a crew member (demo mode) | The new clock event's sync badge reads **"saved locally"** (demo mode keeps data on the device; in live mode it moves to "waiting to sync" and then "synchronised" by itself) |
+| R3 | (Live mode) Create a record while **offline** | Badge "saved locally"; when internet returns it flips to "waiting to sync" → "synchronised" **without any button press** |
+| R4 | (Live mode) Turn the internet off and on, reopen the app | Uploads resume automatically; the header chip shows "Synchronised" when the queue empties |
+| R5 | (Live mode) **Sync now** button on the dashboard | Green toast with the number of records uploaded; the same upload never creates duplicates (every record has one permanent ID) |
+| R6 | (Live mode) Edit the same record on two devices | The cloud's newest version wins; the other device adopts it and the Audit Log records `sync_conflict` — nothing is lost or silently overwritten |
+| R7 | (Live mode) Pull the network cable mid-sync | Failed attempts are retried; after 5 tries the record shows **"sync failed — kept"** and stays safe; a successful later retry clears the flag |
+
 ## When every box ticks
 
-Congratulations — Phases 1 and 2 are verified. Tell your developer "Phase 2 approved" and Phase 3 (Offline & Synchronisation: device-bound offline sign-in with quick PIN, full device registry, duplicate-proof automatic sync with per-record status) begins.
+Congratulations — Phases 1, 2 and 3 are verified. Tell your developer "Phase 3 approved" and Phase 4 (Working Hours & Catch: hour categories, breaks and rest, midnight-crossing shifts, supervisor corrections, catch register, quota allocations) begins.

@@ -37,14 +37,14 @@ function stamp(extra = {}) {
   };
 }
 
-/* ---------- First-run seeding (and Phase-2 upgrade of existing installs) ---------- */
+/* ---------- First-run seeding (and Phase-2/3 upgrade of existing installs) ---------- */
 export async function ensureSeed() {
   const seeded = await get(STORES.META, 'seeded');
   const seedVersion = (await get(STORES.META, 'seedVersion'))?.value || 0;
 
   if (!seeded) {
     await seedFull();
-    await put(STORES.META, { id: 'seedVersion', value: 2 });
+    await put(STORES.META, { id: 'seedVersion', value: 3 });
     return true;
   }
   if (seedVersion < 2) {
@@ -52,6 +52,14 @@ export async function ensureSeed() {
     // never touching the user's existing records.
     await seedPhase2DemoData();
     await put(STORES.META, { id: 'seedVersion', value: 2 });
+  }
+  if (seedVersion < 3) {
+    // Phase 3 upgrade: no data changes — just refresh the version stamp.
+    // (Device PINs, revocation and sync states need no migration; existing
+    // records keep their "saved locally" state and sync naturally.)
+    const rec = (await get(STORES.META, 'seeded')) || {};
+    await put(STORES.META, { ...rec, id: 'seeded', appVersion: '2.1.0' });
+    await put(STORES.META, { id: 'seedVersion', value: 3 });
     return true;
   }
   return false;
@@ -168,7 +176,7 @@ async function seedBase() {
   }));
   await put(STORES.META, { id: 'localDeviceId', value: (await getAll(STORES.DEVICES))[0].id });
 
-  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.0.2' });
+  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.1.0' });
   return true;
 }
 
@@ -278,7 +286,7 @@ export async function seedPhase2DemoData() {
 async function seedFull() {
   await seedBase();
   await seedPhase2DemoData();
-  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.0.2' });
+  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.1.0' });
 }
 
 /* ---------- Settings ---------- */

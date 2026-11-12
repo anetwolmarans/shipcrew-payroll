@@ -4,6 +4,7 @@
  * In demo mode it lists the demo accounts so a beginner can try each role.
  */
 import { login, sendPasswordReset } from '../core/auth.service.js';
+import { getOrCreateDeviceRecord } from '../core/device.service.js';
 import { isFirebaseConfigured, environmentName } from '../firebase-config.js';
 import { DEMO_ACCOUNTS, APP } from '../config.js';
 import { homeFor } from '../core/router.js';
@@ -55,6 +56,8 @@ export function render(root, ctx) {
         ${demo
           ? `<div class="banner banner-demo">${icon('alert', 18)}<div><b>Demo mode.</b> No Firebase project is connected yet, so data stays on this device with demo accounts. Never enter real employee data. <b>How to connect: docs/01-firebase-setup.md</b></div></div>`
           : `<div class="banner banner-info">${icon('info', 18)}<div><b>${esc(environmentName())} environment.</b> Sign in with the account your administrator created for you.</div></div>`}
+
+        <div id="revoked-banner" style="display:none"></div>
 
         <form id="login-form" novalidate style="margin-top:1rem">
           <div class="field">
@@ -178,4 +181,21 @@ export function render(root, ctx) {
   });
 
   emailInput.focus();
+
+  /* Phase 3 — if this device was revoked, say so loudly before sign-in. */
+  (async () => {
+    try {
+      const device = await getOrCreateDeviceRecord();
+      if (device.status === 'revoked') {
+        const box = root.querySelector('#revoked-banner');
+        if (box) {
+          box.style.display = 'block';
+          box.innerHTML = `<div class="banner banner-danger" style="margin-top:1rem">${icon('alert', 18)}<div>
+            <b>This device has been revoked</b> by an administrator (${esc(device.revokedBy || 'administrator')}${device.revokedAt ? `, ${esc(String(device.revokedAt).slice(0, 10))}` : ''}).
+            Sign-in is blocked for everyone except a system administrator, who can reinstate it on the Devices screen.
+            Records already saved on this device stay safe and cannot sync until it is reinstated.</div></div>`;
+        }
+      }
+    } catch { /* never block the login screen on this check */ }
+  })();
 }

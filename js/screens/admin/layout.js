@@ -6,7 +6,7 @@
  */
 import { icon, esc, avatarInitials, toast } from '../../core/ui.js';
 import { canAny, CAPABILITIES } from '../../core/permissions.js';
-import { logout } from '../../core/auth.service.js';
+import { logout, lock } from '../../core/auth.service.js';
 import { isFirebaseConfigured } from '../../firebase-config.js';
 import { APP } from '../../config.js';
 import { go } from '../../core/router.js';
@@ -99,6 +99,7 @@ export function renderAdminShell(root, ctx, { title, navKey, body }) {
         <h1 class="page-title">${esc(title)}</h1>
         <div class="spacer"></div>
         <span class="sync-chip" data-sync-chip>${icon('wifi', 14)}<span>…</span></span>
+        <button class="icon-btn" id="topbar-lock" title="Lock now" aria-label="Lock now">${icon('lock', 20)}</button>
         <button class="icon-btn" id="topbar-logout" title="Sign out" aria-label="Sign out">${icon('logout', 20)}</button>
       </header>
       <main class="content" id="admin-content">${body}</main>
@@ -113,6 +114,12 @@ export function renderAdminShell(root, ctx, { title, navKey, body }) {
   });
   scrim.addEventListener('click', closeDrawer);
   sidebar.querySelectorAll('.nav-link').forEach((a) => a.addEventListener('click', closeDrawer));
+
+  root.querySelector('#topbar-lock').addEventListener('click', async () => {
+    await lock('Locked with the "Lock now" button.');
+    go('#/lock');
+    toast('Locked. Unlock with your password or device PIN.', 'info');
+  });
 
   root.querySelector('#topbar-logout').addEventListener('click', async () => {
     await logout();

@@ -34,14 +34,17 @@ const PHASES = [
     tests: 'Acceptance tests 1–4, 7–8 (clocking), 12'
   },
   {
-    n: 3, title: 'Offline & Synchronisation', status: 'next',
+    n: 3, title: 'Offline & Synchronisation', status: 'done',
     items: [
-      'Offline device activation and device-bound sign-in with quick PIN',
-      'Device registry with administrator revocation',
-      'Automatic sync with duplicate prevention and safe conflict handling',
-      'Full sync-status visibility per record (saved / waiting / synced / failed)'
+      'Offline device activation and device-bound sign-in with quick PIN (4–8 digits, stored hashed on the device only)',
+      'Lock screen unlock with the device PIN — the offline way at sea, with its own wrong-attempt guard',
+      'Device registry with administrator revocation and reinstatement (revoked devices cannot sign in or sync)',
+      'Fully automatic, duplicate-proof sync (drains on open, on reconnect, in the foreground, and every 30 s)',
+      'Per-record sync states: saved locally → waiting to sync → synchronised / failed — kept (nothing is ever lost)',
+      'Safe conflict handling: the newest edit wins, the losing device adopts the newer copy, every conflict is audited',
+      'Sync ledger (sync_transactions) records every upload run, locally and in the cloud'
     ],
-    tests: 'Acceptance tests 7–11 (offline clocking, no duplicates after repeated sync)'
+    tests: 'Acceptance tests 9–11 (offline clocking, no duplicates after repeated sync)'
   },
   {
     n: 4, title: 'Working Hours & Catch', status: 'planned',
@@ -79,7 +82,7 @@ const PHASES = [
 
 export function render(root, ctx) {
   const body = `
-    <div class="banner banner-success">${icon('check-circle', 18)}<div><b>Phases 1 and 2 are complete and tested.</b> Phase 2 delivered the crew register, vessels, trips, assignments, crew clocking and in-app user management. Run sections H–M of <span class="mono">docs/04-testing-guide.md</span> to verify it yourself.</div></div>
+    <div class="banner banner-success">${icon('check-circle', 18)}<div><b>Phases 1, 2 and 3 are complete and tested.</b> Phase 3 delivered the device PIN, full device registry with revocation, and the fully automatic duplicate-proof sync engine with per-record states and safe conflict handling. Run sections P–R of <span class="mono">docs/04-testing-guide.md</span> to verify it yourself.</div></div>
     <div style="height:1rem"></div>
     ${PHASES.map((p) => `
     <div class="card">
@@ -87,7 +90,7 @@ export function render(root, ctx) {
         ${icon(p.status === 'done' ? 'check-circle' : p.status === 'next' ? 'clock' : 'calendar', 18)}
         Phase ${p.n} — ${esc(p.title)}
         <span class="badge ${p.status === 'done' ? 'badge-success' : p.status === 'next' ? 'badge-teal' : 'badge-neutral'}" style="margin-left:auto">
-          ${p.status === 'done' ? (p.n === 2 ? 'Complete (this build)' : 'Complete') : p.status === 'next' ? 'Next up' : 'Planned'}
+          ${p.status === 'done' ? (p.n === 3 ? 'Complete (this build)' : 'Complete') : p.status === 'next' ? 'Next up' : 'Planned'}
         </span>
       </div>
       <ul style="margin:0 0 .6rem">${p.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>

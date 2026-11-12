@@ -24,6 +24,7 @@ import { roleLabel, ROLES } from './permissions.js';
 import { emit } from './events.js';
 import { nowISO } from './time.js';
 import { queueForSync, registerDeviceLive } from './sync.service.js';
+import { isDeviceRevoked, checkServerRevocation, verifyDevicePin, getOrCreateDeviceRecord } from './device.service.js';
 
 let _session = null;
 
@@ -67,6 +68,13 @@ export async function login(email, password) {
     const session = isFirebaseConfigured()
       ? await loginLive(cleanEmail, password)
       : await loginDemo(cleanEmail, password);
+
+    /* Phase 3 — device revocation: a revoked device cannot be used (except
+       by a system administrator, who may need to reinstate it in demo mode). */
+    if (await isDeviceRevoked() && session.role !== 'system_admin') {
+      await logAction(AUDIT_ACTIONS.LOGIN_FAILED, `Sign-in blocked on "${session.fullName}": this device has been revoked by an administrator.`);
+      throw new Error('This device has been revoked by your administrator, so sign-in is blocked. Records on it stay safe on the device. An administrator can reinstate it from the Devices screen.');
+    }
     await clearGuard();
 
     _session = session;
@@ -157,6 +165,11 @@ async function loginLive(email, password) {
     await signOut(fb.auth);
     throw new Error('This account has been disabled. Contact your system administrator.');
   }
+  /* Phase 3 — if THIS device was revoked centrally, stop right here. */
+  if (await checkServerRevocation()) {
+    await signOut(fb.auth);
+    throw new Error('This device has been revoked by your administrator, so sign-in is blocked. Records on it stay safe on the device.');
+  }
   return buildSession({ ...data, id: uid }, 'live');
 }
 
@@ -170,6 +183,15 @@ export async function restoreSession() {
       await del(STORES.SESSIONS, 'current');
       return null;
     }
+  }
+  /* Phase 3 — a revoked device ends its session immediately (administrators
+     keep their session so they can reinstate the device). */
+  if (await isDeviceRevoked() && session.role !== 'system_admin') {
+    await logAction(AUDIT_ACTIONS.DEVICE_REVOKED, `Session ended on reopen: this device is revoked (was signed in as ${session.fullName}).`);
+    await del(STORES.SESSIONS, 'current');
+    _session = null;
+    emit('session:changed', null);
+    return null;
   }
   _session = session;
   await logAction(AUDIT_ACTIONS.SESSION_RESTORED, 'App reopened — session restored from this device.');
@@ -222,11 +244,35 @@ export async function unlock(password) {
     return true;
   } catch (err) {
     const msg = err?.code === 'auth/network-request-failed'
-      ? 'You are offline. Reconnect to the internet to unlock. (A quick PIN unlock for offline use arrives in Phase 3.)'
+      ? 'You are offline, so Firebase cannot be reached to check your password. Unlock with your device PIN below — or reconnect to the internet.'
       : (err?.message || 'Unlock failed.');
     await logAction(AUDIT_ACTIONS.UNLOCK_FAILED, msg);
     throw new Error(msg);
   }
+}
+
+/* ---------- Device-PIN unlock (Phase 3 — offline unlock at sea) ---------- */
+/**
+ * Unlock a locked session with the quick PIN that belongs to THIS device.
+ * Available in demo mode always, and in live mode when offline (online
+ * live-mode unlocks use the password so the stronger server check applies).
+ * The PIN is verified against the hashed copy stored on this device only,
+ * with its own brute-force guard.
+ */
+export async function unlockWithPin(pin) {
+  if (!_session) throw new Error('No active session.');
+  try {
+    await verifyDevicePin(pin);
+  } catch (err) {
+    const msg = err?.message || 'Incorrect PIN.';
+    await logAction(AUDIT_ACTIONS.PIN_UNLOCK_FAILED, `Wrong device PIN entered on the lock screen (by ${_session.fullName}).`);
+    throw new Error(msg);
+  }
+  _session = { ..._session, locked: false, lockedAt: null };
+  await put(STORES.SESSIONS, { ..._session, id: 'current' });
+  await logAction(AUDIT_ACTIONS.PIN_UNLOCK_SUCCESS, `${_session.fullName} unlocked the screen with the device PIN.`);
+  emit('session:changed', _session);
+  return true;
 }
 
 /* ---------- Password reset email (live mode) ---------- */

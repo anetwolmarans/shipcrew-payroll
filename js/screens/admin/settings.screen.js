@@ -99,7 +99,8 @@ export async function render(root, ctx) {
       <span class="mono">docs/05-backup-recovery.md</span>,
       <span class="mono">docs/07-github-code-backup.md</span>,
       <span class="mono">docs/08-android-apk.md</span>,
-      <span class="mono">docs/09-deployment-github-pages.md</span>.</p>
+      <span class="mono">docs/09-deployment-github-pages.md</span>,
+      <span class="mono">docs/10-devices-pin-sync.md</span>.</p>
     </div>`;
 
   const content = renderAdminShell(root, ctx, { title: 'Settings', navKey: 'settings', body });

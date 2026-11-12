@@ -336,7 +336,10 @@ table.table { width: 100%; border-collapse: collapse; font-size: .9rem; min-widt
   font-size: .76rem; font-weight: 600; color: var(--muted);
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius-pill); padding: 5px 12px; white-space: nowrap;
+  min-width: 0; max-width: 100%;
 }
+.sync-chip > span { overflow: hidden; text-overflow: ellipsis; }
+.topbar .sync-chip { max-width: 44vw; }
 .sync-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted-2); flex: 0 0 auto; }
 .sync-chip.is-online .dot { background: var(--success); }
 .sync-chip.is-offline .dot { background: var(--danger); }

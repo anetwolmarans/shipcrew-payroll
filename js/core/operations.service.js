@@ -28,7 +28,7 @@
 import { get, getAll, put, del, STORES } from './idb.js';
 import { nowISO, minutesToHHMM } from './time.js';
 import { uuid } from './security.js';
-import { CLOCKABLE_TRIP_STATUSES, tripStatus, TRIP_STATUSES } from '../config.js';
+import { CLOCKABLE_TRIP_STATUSES, tripStatus, TRIP_STATUSES, SYNC_STATUS } from '../config.js';
 import { queueForSync } from './sync.service.js';
 import { logAction, AUDIT_ACTIONS } from './audit.service.js';
 import { currentSession } from './auth.service.js';
@@ -462,7 +462,7 @@ export async function clockIn() {
     clockInAt: nowISO(), clockOutAt: null, durationMinutes: null,
     status: 'open',
     deviceId: device?.id || null, deviceName: device?.name || who.deviceName,
-    syncStatus: 'saved locally'
+    syncStatus: SYNC_STATUS.LOCAL
   });
   const saved = await persist(STORES.CLOCK_EVENTS, event, 'clock_events', 'clock_event',
     AUDIT_ACTIONS.CLOCK_IN,
@@ -491,7 +491,7 @@ export async function clockOut() {
     status: 'closed',
     clockOutDeviceName: who.deviceName
   });
-  next.syncStatus = 'saved locally';
+  next.syncStatus = SYNC_STATUS.LOCAL;
   const saved = await persist(STORES.CLOCK_EVENTS, next, 'clock_events', 'clock_event',
     AUDIT_ACTIONS.CLOCK_OUT,
     `${event.crewName} clocked OUT — trip ${event.tripRef}, duration ${minutesToHHMM(durationMinutes)}.`);
