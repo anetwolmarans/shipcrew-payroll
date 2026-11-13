@@ -1,6 +1,6 @@
 # Guide 4 — Test Checklist
 
-Work through this list yourself — every row tells you exactly what to do and what you should see. All tests use **demo mode** (no Firebase needed). Sections A–G are the Phase 1 foundation (about 30 minutes); **sections H–M are the Phase 2 tests: crew, vessels, trips, assignments, clocking and user management** (about 40 minutes).
+Work through this list yourself — every row tells you exactly what to do and what you should see. All tests use **demo mode** (no Firebase needed). Sections A–G are the Phase 1 foundation (about 30 minutes); **sections H–M are the Phase 2 tests: crew, vessels, trips, assignments, clocking and user management** (about 40 minutes); **sections P–R are the Phase 3 tests: device PIN, registry & revocation, sync engine**; **sections S–U are the Phase 4 tests: hour categories, breaks & corrections, catch & quota** (about 30 minutes).
 
 Legend: ✅ = the test passes when you see the expected result.
 
@@ -194,6 +194,44 @@ Legend: ✅ = the test passes when you see the expected result.
 | R6 | (Live mode) Edit the same record on two devices | The cloud's newest version wins; the other device adopts it and the Audit Log records `sync_conflict` — nothing is lost or silently overwritten |
 | R7 | (Live mode) Pull the network cable mid-sync | Failed attempts are retried; after 5 tries the record shows **"sync failed — kept"** and stays safe; a successful later retry clears the flag |
 
+## S. Hour categories (Phase 4 — automatic calculation)
+
+| # | Do this | You should see |
+|---|---|---|
+| S1 | Admin → **Attendance & Hours** | A Phase 4 banner: "hours are now categorised automatically". Stat cards show **Net worked time** (breaks excluded) and **Night / Sunday / Holiday** |
+| S2 | Filter to trip **TRP-2026-014**, press **Recalculate categories** | Each completed event shows category chips. The midnight shift (20:15 → 04:40, 30-min break) shows **Ordinary 1h 45m + Night work 6h 10m**, net 7h 55m |
+| S3 | Check the yellow **rest-period warning** | "Frans Nangolo rested only 4h 20m between shifts (04:40 → 09:00)" — the gap between the two demo shifts is below 11 h |
+| S4 | Scroll to **One day, in categories** | Pick a crew member + date: per-event categories and the day total, with breaks shown separately |
+| S5 | **Settings → Working hours** | Ordinary hours 9, night 22:00–05:00, rest warning 11 h, break rules (manual default). Change the night start to 20:00 and save |
+| S6 | Back on Attendance, Recalculate again | The midnight shift now shows MORE night minutes (night starts 2 h earlier) — categories follow the settings, deterministically |
+| S7 | **Statutory Rules** screen | The public-holiday calendar comes from the Public Holidays Act rules (fixed dates + Easter + Monday rule) — no rates, no guessing. 2026 dates verified against the Ministry's list |
+
+## T. Breaks & supervisor corrections (Phase 4)
+
+| # | Do this | You should see |
+|---|---|---|
+| T1 | Sign in as **Crew Member (Frans)** → CLOCK IN | Under CLOCK OUT a **Start break** button appears |
+| T2 | Press **Start break** | The big button becomes **END BREAK** with "On break since … Namibian time — break time does not count as worked time" |
+| T3 | Press **END BREAK**, then clock out | The event's break minutes appear on the Attendance screen in the **Break** column and are excluded from net time |
+| T4 | Sign in as **Supervisor** (or admin) → Attendance → **Correct** on a completed event | A dialog with the current times, a REQUIRED reason box, and any previous corrections listed |
+| T5 | Change the clock-out, enter a reason, save | The event shows a yellow **corrected** badge; the new duration and categories apply; the reason and the ORIGINAL times are kept in the record |
+| T6 | Open the same event's correction again | The earlier correction is listed (who, when, why) — history is never overwritten |
+| T7 | Try to save a correction WITHOUT a reason | Blocked: "A reason is required — corrections are never anonymous." |
+| T8 | Audit Log | New actions: `attendance_corrected`, `hours_reclassified`, `break_started`, `break_ended` — each with who, when, what |
+
+## U. Catch register & quota allocations (Phase 4)
+
+| # | Do this | You should see |
+|---|---|---|
+| U1 | Admin → **Catch & Quota** → trip **TRP-2026-013** | Total catch **96.950 t**, 2 species (Hake, Horse mackerel), both catch records with paperwork refs (LN-2026-0341/2, MFA-8817/8) |
+| U2 | The seeded **Equal split** allocation | Frans and Selma each **50.00% / 48,475 kg** — "Equal share: 1 of 2" |
+| U3 | **New allocation** → Rank-based points | A per-member points table with the live preview; enter points and watch each share update |
+| U4 | Save the rank-based allocation | It appears as a second ACTIVE allocation (different methods can coexist); re-running the SAME method supersedes the old one, which stays as *superseded* |
+| U5 | **Record catch** on an at-sea trip (e.g. TRP-2026-014) | Species dropdown (Hake, Horse mackerel, Monkfish…), category, kg weight, landing site, refs — saved with an audit entry `catch_recorded` |
+| U6 | **Amend** that catch record with a new weight + reason | An "amended ×1" badge; the original value and the reason are preserved in the amendments list |
+| U7 | Try percentages that do not total 100% | A warning "Percentages total 95% — they should total 100%" and saving is blocked |
+| U8 | Sign in as **Crew Member (Frans)** | No Catch & Quota in the menu — crew see only their own screen (the server rules block them too) |
+
 ## When every box ticks
 
-Congratulations — Phases 1, 2 and 3 are verified. Tell your developer "Phase 3 approved" and Phase 4 (Working Hours & Catch: hour categories, breaks and rest, midnight-crossing shifts, supervisor corrections, catch register, quota allocations) begins.
+Congratulations — Phases 1, 2, 3 and 4 are verified. Tell your developer "Phase 4 approved" and Phase 5 (Payroll: contracts, commissions, allowances, PAYE + SSC from verified statutory rules, per-trip payroll, approval & locking, PDF payslips) begins.

@@ -8,16 +8,6 @@ import { renderAdminShell } from './layout.js';
 import { icon, esc } from '../../core/ui.js';
 
 const MODULES = {
-  catch: {
-    title: 'Catch & Quota', phase: 'Phase 4', icon: 'anchor',
-    summary: 'The catch register per trip: species, weights, landing weights, total tonnage, categories and documentation — plus quota commission allocations per crew contract.',
-    items: [
-      'Equal, percentage, fixed-weight, rank-based, contractual and custom quota methods',
-      'Different crew members can have different commission arrangements',
-      'All historical catch and quota records preserved'
-    ],
-    tests: 'Feeds acceptance test 13'
-  },
   payroll: {
     title: 'Payroll Processing', phase: 'Phase 5', icon: 'coins',
     summary: 'Per-trip payroll that respects statutory pay periods: approved attendance + contracts + catch → basic pay, overtime, night-work, Sunday/public-holiday, commissions, bonuses, deductions, PAYE and SSC → draft payslips → review → approval → locked.',

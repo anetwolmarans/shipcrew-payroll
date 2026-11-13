@@ -2,7 +2,7 @@
 
 A payroll management system for a Namibian fishing company: crew records, vessels, trips, clock-in/clock-out, working hours, catch & quota commission, statutory deductions, payslips and reports — built to work **on fishing vessels with no internet**.
 
-**This build is Phase 3 of 6 (Offline & Synchronisation) — the registers, crew clocking, device PINs, the device registry with revocation, and the fully automatic duplicate-proof sync engine.** It is a complete, working app — not a mock-up — and it is deliberately delivered in tested phases. See `docs/06-roadmap.md` for what each phase adds.
+**This build is Phase 4 of 6 (Working Hours & Catch) — on top of the registers, crew clocking, device PINs and the automatic sync engine, hours are now categorised automatically (ordinary, overtime, night, Sunday, public holiday), with breaks, rest warnings, supervisor corrections, the catch register and the six quota-allocation methods.** It is a complete, working app — not a mock-up — and it is deliberately delivered in tested phases. See `docs/06-roadmap.md` for what each phase adds.
 
 ---
 

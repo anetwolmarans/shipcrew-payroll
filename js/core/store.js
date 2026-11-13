@@ -37,14 +37,14 @@ function stamp(extra = {}) {
   };
 }
 
-/* ---------- First-run seeding (and Phase-2/3 upgrade of existing installs) ---------- */
+/* ---------- First-run seeding (and Phase-2/3/4 upgrade of existing installs) ---------- */
 export async function ensureSeed() {
   const seeded = await get(STORES.META, 'seeded');
   const seedVersion = (await get(STORES.META, 'seedVersion'))?.value || 0;
 
   if (!seeded) {
     await seedFull();
-    await put(STORES.META, { id: 'seedVersion', value: 3 });
+    await put(STORES.META, { id: 'seedVersion', value: 4 });
     return true;
   }
   if (seedVersion < 2) {
@@ -58,8 +58,15 @@ export async function ensureSeed() {
     // (Device PINs, revocation and sync states need no migration; existing
     // records keep their "saved locally" state and sync naturally.)
     const rec = (await get(STORES.META, 'seeded')) || {};
-    await put(STORES.META, { ...rec, id: 'seeded', appVersion: '2.1.0' });
+    await put(STORES.META, { ...rec, id: 'seeded', appVersion: '2.2.0' });
     await put(STORES.META, { id: 'seedVersion', value: 3 });
+  }
+  if (seedVersion < 4) {
+    // Phase 4 upgrade: ADD the working-hours & catch demo data (a midnight-
+    // crossing shift with a break, catch records, an equal-split allocation).
+    // Existing records are never touched.
+    await seedPhase4DemoData();
+    await put(STORES.META, { id: 'seedVersion', value: 4 });
     return true;
   }
   return false;
@@ -176,7 +183,7 @@ async function seedBase() {
   }));
   await put(STORES.META, { id: 'localDeviceId', value: (await getAll(STORES.DEVICES))[0].id });
 
-  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.1.0' });
+  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.2.0' });
   return true;
 }
 
@@ -286,7 +293,108 @@ export async function seedPhase2DemoData() {
 async function seedFull() {
   await seedBase();
   await seedPhase2DemoData();
-  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.1.0' });
+  await seedPhase4DemoData();
+  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.2.0' });
+}
+
+/**
+ * Phase 4 demo data: a midnight-crossing shift WITH a break (so hour
+ * categories and net time can be seen immediately), a second completed
+ * shift close behind it (rest warning), catch records for trip-013 and an
+ * equal-split quota allocation. All clearly fictional. Only ADDS records —
+ * an existing install keeps everything it already has.
+ */
+export async function seedPhase4DemoData() {
+  const frans = await getCrewById('NAF-0027');
+  if (!frans) return false;   // crew demo data missing — nothing to attach to
+
+  /* 1) A midnight-crossing shift on trip-014: 20:15 → 04:40 next day,
+        with a 30-minute break at 23:00. Contains evening ordinary, night
+        minutes before and after midnight, and a fresh day's ordinary tail. */
+  const now = Date.now();
+  const day = 24 * 3600000;
+  const clockInAt = new Date(now - 2 * day);                      // 2 days ago…
+  const inAt = new Date(clockInAt);
+  inAt.setUTCHours(18, 15, 0, 0);                                 // 20:15 Namibian (UTC+2)
+  const outAt = new Date(inAt.getTime() + (8 * 60 + 25) * 60000); // 8 h 25 m later → 04:40
+  const breakStart = new Date(inAt.getTime() + (2 * 60 + 45) * 60000); // 23:00
+  const breakEnd = new Date(breakStart.getTime() + 30 * 60000);        // 23:30
+  const gross = Math.round((outAt - inAt) / 60000);               // 505 min
+  const net = gross - 30;
+
+  await put(STORES.CLOCK_EVENTS, stamp({
+    id: 'clock-demo-0002', userId: frans.userId || null, employeeId: 'NAF-0027', crewName: 'Frans Nangolo',
+    tripId: 'trip-014', tripRef: 'TRP-2026-014', vesselId: 'vessel-etosha', vesselName: 'MFV Etosha Bay',
+    clockInAt: inAt.toISOString(), clockOutAt: outAt.toISOString(),
+    durationMinutes: gross, breakMinutes: 30, netWorkedMinutes: net,
+    status: 'closed', deviceId: null, deviceName: 'Demo record',
+    syncStatus: 'saved locally', isDemo: true
+  }));
+  await put(STORES.BREAK_RECORDS, stamp({
+    id: 'break-demo-0001', userId: frans.userId || null, employeeId: 'NAF-0027', crewName: 'Frans Nangolo',
+    clockEventId: 'clock-demo-0002', tripId: 'trip-014', tripRef: 'TRP-2026-014', vesselName: 'MFV Etosha Bay',
+    startedAt: breakStart.toISOString(), endedAt: breakEnd.toISOString(),
+    durationMinutes: 30, status: 'closed',
+    syncStatus: 'saved locally', isDemo: true
+  }));
+
+  /* 2) A short second shift the SAME day (09:00 → 12:10): triggers the
+        rest-period warning (< 11 h gap) and shows day-allowance sharing. */
+  const in2 = new Date(inAt.getTime() + day);          // next local day
+  in2.setUTCHours(7, 0, 0, 0);                          // 09:00 Namibian
+  const out2 = new Date(in2.getTime() + 190 * 60000);   // 3 h 10 m → 12:10
+  await put(STORES.CLOCK_EVENTS, stamp({
+    id: 'clock-demo-0003', userId: frans.userId || null, employeeId: 'NAF-0027', crewName: 'Frans Nangolo',
+    tripId: 'trip-014', tripRef: 'TRP-2026-014', vesselId: 'vessel-etosha', vesselName: 'MFV Etosha Bay',
+    clockInAt: in2.toISOString(), clockOutAt: out2.toISOString(),
+    durationMinutes: 190, breakMinutes: 0, netWorkedMinutes: 190,
+    status: 'closed', deviceId: null, deviceName: 'Demo record',
+    syncStatus: 'saved locally', isDemo: true
+  }));
+
+  /* 3) Catch records for the closed trip-013 (landed a week ago). */
+  const landedAt = new Date(now - 8 * day);
+  landedAt.setUTCHours(8, 0, 0, 0);   // 10:00 Namibian
+  await put(STORES.CATCH_RECORDS, stamp({
+    id: 'catch-demo-0001', tripId: 'trip-013', tripRef: 'TRP-2026-013',
+    vesselId: 'vessel-etosha', vesselName: 'MFV Etosha Bay',
+    species: 'Hake (Merluccius capensis)', category: 'Headed and gutted',
+    weightKg: 84200, landingSite: 'Walvis Bay',
+    landedAt: landedAt.toISOString(),
+    landingNoteRef: 'LN-2026-0341', monitoringRef: 'MFA-8817',
+    notes: 'Demo catch record — weighbridge total, factory-landed.',
+    amendments: [], isDemo: true,
+    syncStatus: 'saved locally'
+  }));
+  await put(STORES.CATCH_RECORDS, stamp({
+    id: 'catch-demo-0002', tripId: 'trip-013', tripRef: 'TRP-2026-013',
+    vesselId: 'vessel-etosha', vesselName: 'MFV Etosha Bay',
+    species: 'Horse mackerel', category: 'Whole round',
+    weightKg: 12750, landingSite: 'Walvis Bay',
+    landedAt: landedAt.toISOString(),
+    landingNoteRef: 'LN-2026-0342', monitoringRef: 'MFA-8818',
+    notes: 'Demo bycatch retained for fish meal.',
+    amendments: [], isDemo: true,
+    syncStatus: 'saved locally'
+  }));
+
+  /* 4) An equal-split quota allocation for trip-013 (two crew members). */
+  const selma = await getCrewById('NAF-0031');
+  const crewLines = [
+    { crewId: 'NAF-0027', crewName: 'Frans Nangolo', position: 'Deckhand', share: 50, shareKg: 48475, note: 'Equal share: 1 of 2' },
+    { crewId: 'NAF-0031', crewName: 'Selma Uugwanga', position: 'Fish Processing Operator', share: 50, shareKg: 48475, note: 'Equal share: 1 of 2' }
+  ];
+  void selma;
+  await put(STORES.QUOTA_ALLOCATIONS, stamp({
+    id: 'quota-demo-0001', tripId: 'trip-013', tripRef: 'TRP-2026-013',
+    vesselId: 'vessel-etosha', vesselName: 'MFV Etosha Bay',
+    method: 'equal_split', methodLabel: 'Equal split',
+    methodInput: {}, lines: crewLines,
+    totalCatchKg: 96950, reason: 'Demo allocation — equal split among the trip crew.',
+    status: 'active', isDemo: true,
+    syncStatus: 'saved locally'
+  }));
+  return true;
 }
 
 /* ---------- Settings ---------- */

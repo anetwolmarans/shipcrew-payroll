@@ -24,8 +24,8 @@ export const NAV = [
       { key: 'crew', label: 'Crew', hash: '#/admin/crew', icon: 'users' },
       { key: 'vessels', label: 'Vessels', hash: '#/admin/vessels', icon: 'ship' },
       { key: 'trips', label: 'Trips', hash: '#/admin/trips', icon: 'map' },
-      { key: 'attendance', label: 'Attendance & Hours', hash: '#/admin/attendance', icon: 'clock', phase: 'P4' },
-      { key: 'catch', label: 'Catch & Quota', hash: '#/admin/module/catch', icon: 'anchor', phase: 'P4' }
+      { key: 'attendance', label: 'Attendance & Hours', hash: '#/admin/attendance', icon: 'clock' },
+      { key: 'catch', label: 'Catch & Quota', hash: '#/admin/catch', icon: 'fish' }
     ]
   },
   {

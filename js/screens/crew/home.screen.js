@@ -15,11 +15,12 @@
 import { currentSession, logout } from '../../core/auth.service.js';
 import * as store from '../../core/store.js';
 import * as ops from '../../core/operations.service.js';
+import * as hours from '../../core/hours.service.js';
 import { icon, esc, avatarInitials, toast, updateSyncChips } from '../../core/ui.js';
 import { state as syncState } from '../../core/sync.service.js';
 import { fmtDate, fmtDateTime, fmtTime, minutesToHHMM, tzOffsetLabel, todayKey } from '../../core/time.js';
 import { isFirebaseConfigured } from '../../firebase-config.js';
-import { APP, tripStatus } from '../../config.js';
+import { APP, tripStatus, HOUR_CATEGORIES } from '../../config.js';
 import { go } from '../../core/router.js';
 
 export async function render(root, ctx) {
@@ -34,10 +35,20 @@ export async function render(root, ctx) {
     const trip = assignment?.trip || null;
     const openEvent = await ops.myOpenClockEvent(session.userId);
     const clocked = !!openEvent;
+    const onBreak = openEvent ? await hours.myOpenBreak(openEvent.id) : null;
     const workedToday = crew ? await ops.minutesWorkedOn(session.userId, todayKey()) : 0;
     const recent = crew ? await ops.myClockEvents(session.userId, 5) : [];
+    const todayCats = crew ? await hours.dayCategoriesFor(crew.id, todayKey()) : null;
 
     const statusDef = trip ? tripStatus(trip.status) : null;
+
+    /* Today's categories as chips (crew sees their own hours in categories). */
+    const catChips = todayCats && todayCats.total
+      ? HOUR_CATEGORIES
+          .filter(c => (todayCats.total[c.key] || 0) > 0)
+          .map(c => `<span class="badge badge-${c.color}" style="margin:.15rem .2rem">${esc(c.label)} ${esc(minutesToHHMM(todayCats.total[c.key]))}</span>`)
+          .join('')
+      : '<span class="text-xs text-muted">Hours are categorised (ordinary, overtime, night, Sunday, public holiday) once a shift is completed.</span>';
 
     root.innerHTML = `
   <div class="crew-wrap">
@@ -67,12 +78,24 @@ export async function render(root, ctx) {
         <div class="live-date" id="live-date">Loading…</div>
 
         ${clocked ? `
-          <button class="clock-btn clock-btn-out" id="btn-clock-out">
-            ${icon('logout', 30)} CLOCK OUT
-          </button>
-          <div class="text-center text-xs text-muted" style="margin-top:.5rem">
-            Clocked in at ${esc(fmtTime(openEvent.clockInAt))} Namibian time · trip ${esc(openEvent.tripRef)}
-          </div>
+          ${onBreak ? `
+            <button class="clock-btn clock-btn-out" id="btn-break-end" style="background:var(--accent-600,#c47d00)">
+              ${icon('coffee', 28)} END BREAK
+            </button>
+            <div class="text-center text-xs text-muted" style="margin-top:.5rem">
+              On break since ${esc(fmtTime(onBreak.startedAt))} — break time does not count as worked time.
+            </div>
+          ` : `
+            <button class="clock-btn clock-btn-out" id="btn-clock-out">
+              ${icon('logout', 30)} CLOCK OUT
+            </button>
+            <button class="btn btn-outline" id="btn-break-start" style="width:100%;margin-top:.6rem">
+              ${icon('coffee', 18)} Start break
+            </button>
+            <div class="text-center text-xs text-muted" style="margin-top:.5rem">
+              Clocked in at ${esc(fmtTime(openEvent.clockInAt))} Namibian time · trip ${esc(openEvent.tripRef)}
+            </div>
+          `}
         ` : `
           <button class="clock-btn clock-btn-in" id="btn-clock-in">
             ${icon('clock', 30)} CLOCK IN
@@ -88,6 +111,7 @@ export async function render(root, ctx) {
           <div class="kv"><span class="k">Today's hours</span><span class="v" id="today-hours">${esc(minutesToHHMM(workedToday))}</span></div>
           <div class="kv"><span class="k">Time zone</span><span class="v">Namibian time · ${esc(tzOffsetLabel())}</span></div>
         </div>
+        <div style="margin-top:.7rem">${catChips}</div>
         <div class="banner banner-warn" id="clock-msg" style="display:none;margin-top:.8rem"></div>
       </section>
 
@@ -126,7 +150,7 @@ export async function render(root, ctx) {
             </div>`).join('')}
         </div>` : `
         <div class="empty-state">${icon('clock', 30)}<div class="title">No clockings yet</div><p>Your clock in and clock out history will appear here.</p></div>`}
-        <p class="text-xs text-muted" style="margin:.8rem 0 0">Shifts that cross midnight count from the day you clocked in. Hour categories (ordinary, overtime, night…) are calculated in Phase 4.</p>
+        <p class="text-xs text-muted" style="margin:.8rem 0 0">Shifts that cross midnight count from the day you clocked in. Your hours are split automatically into ordinary, overtime, night (22:00–05:00), Sunday and public-holiday time — you can see today's split above.</p>
       </section>
 
       <section class="card" aria-label="My profile">
@@ -210,6 +234,33 @@ export async function render(root, ctx) {
         toast(err?.message || 'Could not clock out.', 'error', 6000);
         showMsg(err?.message || 'Could not clock out.');
         outBtn.disabled = false;
+      }
+    });
+
+    /* Break buttons (Phase 4) — breaks do not count as worked time. */
+    const breakStartBtn = root.querySelector('#btn-break-start');
+    if (breakStartBtn) breakStartBtn.addEventListener('click', async () => {
+      breakStartBtn.disabled = true;
+      try {
+        await hours.startBreak();
+        toast('Break started — enjoy your meal.', 'info');
+        await paint();
+      } catch (err) {
+        toast(err?.message || 'Could not start the break.', 'error', 6000);
+        breakStartBtn.disabled = false;
+      }
+    });
+
+    const breakEndBtn = root.querySelector('#btn-break-end');
+    if (breakEndBtn) breakEndBtn.addEventListener('click', async () => {
+      breakEndBtn.disabled = true;
+      try {
+        await hours.endBreak();
+        toast('Break ended — back to work.', 'info');
+        await paint();
+      } catch (err) {
+        toast(err?.message || 'Could not end the break.', 'error', 6000);
+        breakEndBtn.disabled = false;
       }
     });
 

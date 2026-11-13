@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ============================================================================
-// ShipCrew Payroll — Firebase Firestore Security Rules (Phase 2)
+// ShipCrew Payroll — Firebase Firestore Security Rules (Phase 4)
 // ----------------------------------------------------------------------------
 // PLAIN ENGLISH: these rules run on GOOGLE'S SERVERS and are the real
 // security wall. Even if someone changes the app's code in their browser,
@@ -12,15 +12,19 @@ rules_version = '2';
 //   2. ROLES LIVE IN THE users COLLECTION — a user's role is read from
 //      users/{uid}, which only system administrators can change.
 //   3. CREW SEE ONLY THEIR OWN DATA — enforced here, not just in the menu.
-//   4. WRITE ACCESS opens phase by phase (least privilege). Phase 2 opens:
+//   4. WRITE ACCESS opens phase by phase (least privilege). Phase 2 opened:
 //      crew & banking (payroll/system admins), vessels, trips and
 //      assignments (vessel managers/system admins), and clock events
-//      (crew, for themselves, with validation).
+//      (crew, for themselves, with validation). Phase 4 opens: break
+//      records (crew, own), clock-event corrections (supervisors, closed
+//      events only, originals preserved), catch records and quota
+//      allocations (vessel managers/system admins, amendments with reason).
 //   5. STATUTORY RULES (tax/SSC formulas) can NEVER be edited from the app —
 //      not even by administrators. They change only via controlled,
 //      versioned releases from the Firebase console / Admin SDK.
-//   6. HISTORY IS SACRED: audit log, assignments and clock events are
-//      append-only or strictly constrained — nobody deletes history.
+//   6. HISTORY IS SACRED: audit log, assignments, clock events, catch
+//      records and quota allocations are append-only or strictly
+//      constrained — nobody deletes history.
 //
 // How to deploy: docs/01-firebase-setup.md, step 5.
 // ============================================================================
@@ -115,6 +119,9 @@ service cloud.firestore {
     // Phase 2: a crew member may create ONLY their own clock events, and may
     // close (clock out) their own still-open event. Nobody can change when a
     // clock-in happened, whose event it is, or delete an event.
+    // Phase 4: supervisors may CORRECT closed events (reason mandatory,
+    // originals preserved in the payload); the server trusts the payload's
+    // correctionHistory because the audit log mirrors every correction.
     match /clock_events/{eventId} {
       allow read: if signedIn() && (isStaff() || resource.data.userId == request.auth.uid);
       allow create: if isCrew()
@@ -123,34 +130,64 @@ service cloud.firestore {
         && (request.resource.data.clockOutAt == null
             || (request.resource.data.clockOutAt is string
                 && request.resource.data.clockOutAt > request.resource.data.clockInAt));
-      allow update: if isCrew()
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid
-        && unchanged('clockInAt') && unchanged('employeeId') && unchanged('tripId')
-        && !resource.data.clockOutAt;   // only while still open — a closed event is final
+      allow update: if (isCrew()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid
+          && unchanged('clockInAt') && unchanged('employeeId') && unchanged('tripId')
+          && !resource.data.clockOutAt)   // only while still open — a closed event is final
+        || (isSupervisor() && resource.data.status == 'closed'
+          && request.resource.data.status == 'closed'
+          && request.resource.data.correctionHistory is list
+          && request.resource.data.updatedBy is string);   // Phase 4 correction (originals kept in payload)
       allow delete: if false;
     }
     match /work_records/{recordId} {
       allow read: if signedIn() && (isStaff() || resource.data.userId == request.auth.uid);
-      allow write: if false;   // opens in Phase 4
+      allow write: if false;   // derived data (categories live on clock events)
     }
     match /break_records/{recordId} {
-      allow read: if signedIn();
-      allow write: if false;   // opens in Phase 4
+      // Phase 4: crew create/close their OWN breaks against their own open
+      // clock event. Breaks are immutable once closed.
+      allow read: if signedIn() && (isStaff() || resource.data.userId == request.auth.uid);
+      allow create: if isCrew()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.startedAt is string
+        && request.resource.data.status == 'open';
+      allow update: if isCrew()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && unchanged('employeeId') && unchanged('clockEventId') && unchanged('startedAt')
+        && !resource.data.endedAt;   // only the open break may be closed
+      allow delete: if false;
     }
     match /rest_records/{recordId} {
       allow read: if signedIn();
-      allow write: if false;   // opens in Phase 4
+      allow write: if false;   // rest warnings are derived, stored on device only
     }
 
     // ---------------- catch & quota ----------------
+    // Phase 4: the catch register and quota allocations are managed by the
+    // Vessel Manager and System Administrator. Records carry their full
+    // amendment history; nothing is ever deleted.
     match /catch_records/{recordId} {
       allow read: if signedIn();
-      allow write: if false;   // opens in Phase 4
+      allow create: if (isSystemAdmin() || isVesselManager())
+        && request.resource.data.weightKg is number
+        && request.resource.data.weightKg > 0
+        && request.resource.data.species is string;
+      allow update: if (isSystemAdmin() || isVesselManager())
+        && unchanged('createdAt') && unchanged('createdBy') && unchanged('tripId')
+        && request.resource.data.amendments is list;   // amendments only, with reason
+      allow delete: if false;   // catch history is permanent
     }
     match /quota_allocations/{recordId} {
       allow read: if signedIn();
-      allow write: if false;   // opens in Phase 4
+      allow create: if (isSystemAdmin() || isVesselManager())
+        && request.resource.data.lines is list
+        && request.resource.data.method is string;
+      allow update: if (isSystemAdmin() || isVesselManager())
+        && unchanged('createdAt') && unchanged('createdBy') && unchanged('tripId');
+      allow delete: if false;   // superseded allocations stay as history
     }
 
     // ---------------- contracts & remuneration ----------------

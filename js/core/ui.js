@@ -51,7 +51,10 @@ const PATHS = {
   'key': '<circle cx="7.5" cy="15.5" r="4"/><path d="M10.5 12.5 20 3"/><line x1="16" y1="7" x2="19" y2="10"/><line x1="13.5" y1="9.5" x2="16" y2="12"/>',
   'plus': '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
   'edit': '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
-  'trash': '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
+  'trash': '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  'moon': '<path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11Z"/>',
+  'fish': '<path d="M2.5 12c3-5.5 8-7 12-5.5 2.6 1 4.6 3 5.5 5.5-.9 2.5-2.9 4.5-5.5 5.5-4 1.5-9 0-12-5.5Z"/><circle cx="16.5" cy="10.5" r="0.9" fill="currentColor" stroke="none"/><path d="M2.5 12 5 8.5M2.5 12 5 15.5"/>',
+  'coffee': '<path d="M4 8h12v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4Z"/><line x1="16" y1="9" x2="19" y2="9"/><path d="M18 12.5a2.5 2.5 0 0 0 0-3.5"/><line x1="5" y1="21" x2="15" y2="21"/>'
 };
 
 export function icon(name, size = 20) {

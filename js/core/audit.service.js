@@ -57,7 +57,15 @@ export const AUDIT_ACTIONS = {
   USER_ROLE_CHANGED: 'user_role_changed',
   USER_DISABLED: 'user_disabled',
   USER_ENABLED: 'user_enabled',
-  USER_PASSWORD_RESET: 'user_password_reset'
+  USER_PASSWORD_RESET: 'user_password_reset',
+  /* ---- Phase 4: Working Hours & Catch ---- */
+  BREAK_STARTED: 'break_started',
+  BREAK_ENDED: 'break_ended',
+  ATTENDANCE_CORRECTED: 'attendance_corrected',
+  HOURS_RECLASSIFIED: 'hours_reclassified',
+  CATCH_RECORDED: 'catch_recorded',
+  CATCH_AMENDED: 'catch_amended',
+  QUOTA_ALLOCATED: 'quota_allocated'
 };
 
 export async function logAction(action, details = '') {

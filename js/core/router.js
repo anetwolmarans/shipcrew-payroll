@@ -23,6 +23,7 @@ import * as crewScreen from '../screens/admin/crew.screen.js';
 import * as vesselsScreen from '../screens/admin/vessels.screen.js';
 import * as tripsScreen from '../screens/admin/trips.screen.js';
 import * as attendanceScreen from '../screens/admin/attendance.screen.js';
+import * as catchScreen from '../screens/admin/catch.screen.js';
 
 export const ADMIN_ROLES = ['system_admin', 'payroll_admin', 'vessel_manager', 'supervisor', 'auditor'];
 
@@ -35,6 +36,7 @@ const ROUTES = [
   { path: '#/admin/vessels', screen: vesselsScreen, roles: ADMIN_ROLES, title: 'Vessels' },
   { path: '#/admin/trips', screen: tripsScreen, roles: ADMIN_ROLES, title: 'Trips' },
   { path: '#/admin/attendance', screen: attendanceScreen, roles: ADMIN_ROLES, title: 'Attendance & Hours' },
+  { path: '#/admin/catch', screen: catchScreen, roles: ADMIN_ROLES, title: 'Catch & Quota' },
   { path: '#/admin/users', screen: usersScreen, roles: ADMIN_ROLES, title: 'Users & Roles' },
   { path: '#/admin/devices', screen: devicesScreen, roles: ADMIN_ROLES, title: 'Devices' },
   { path: '#/admin/audit', screen: auditScreen, roles: ADMIN_ROLES, title: 'Audit Log' },

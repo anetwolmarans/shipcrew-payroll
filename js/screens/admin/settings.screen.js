@@ -6,6 +6,7 @@
 import { renderAdminShell } from './layout.js';
 import { icon, esc, toast, confirmDialog, downloadFile, updateSyncChips } from '../../core/ui.js';
 import * as store from '../../core/store.js';
+import * as hours from '../../core/hours.service.js';
 import { logAction, AUDIT_ACTIONS } from '../../core/audit.service.js';
 import { syncNow, state as syncState } from '../../core/sync.service.js';
 import { isFirebaseConfigured, environmentName, ACTIVE_ENV } from '../../firebase-config.js';
@@ -17,6 +18,10 @@ export async function render(root, ctx) {
   const settings = await store.getSettings();
   const company = await store.getCompany();
   const sync = await syncState();
+  const hoursCfg = await hours.getHoursSettings();
+  const toHHMM = (mins) => `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(Math.round(mins % 60)).padStart(2, '0')}`;
+  const nightStartHHMM = toHHMM(hoursCfg.nightStartMinute);
+  const nightEndHHMM = toHHMM(hoursCfg.nightEndMinute);
 
   const body = `
     <div class="card">
@@ -56,6 +61,43 @@ export async function render(root, ctx) {
           </div>
         </div>
         <button class="btn btn-primary btn-sm" type="submit">${icon('check', 16)} Save security settings</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-title">${icon('clock', 18)} Working hours (Phase 4)</div>
+      <p class="card-sub">The rules the hour categories are calculated with. These are company policy choices — pay <i>rates</i> are a separate, statutory matter (Phase 5).</p>
+      <form id="hours-form">
+        <div class="form-grid form-grid-2">
+          <div class="field">
+            <label class="field-label" for="wh-ordinary">Ordinary hours per day</label>
+            <input class="input" id="wh-ordinary" type="number" min="1" max="14" step="0.5" value="${esc(hoursCfg.ordinaryDailyHours)}">
+            <p class="field-hint">Time beyond this on a day counts as overtime.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="wh-night-start">Night work starts</label>
+            <input class="input" id="wh-night-start" type="time" value="${esc(nightStartHHMM)}">
+          </div>
+          <div class="field">
+            <label class="field-label" for="wh-night-end">Night work ends</label>
+            <input class="input" id="wh-night-end" type="time" value="${esc(nightEndHHMM)}">
+            <p class="field-hint">The night window may cross midnight (default 22:00 – 05:00).</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="wh-rest">Rest warning below (hours)</label>
+            <input class="input" id="wh-rest" type="number" min="1" max="24" step="0.5" value="${esc(hoursCfg.minRestMinutes / 60)}">
+            <p class="field-hint">Gaps between shifts shorter than this raise a visible rest warning.</p>
+          </div>
+        </div>
+        <div class="field" style="margin-top:.6rem">
+          <label class="field-label">Break rules</label>
+          <div class="row">
+            <label class="row text-small" style="gap:.4rem"><input type="radio" name="wh-breaks" value="manual" ${hoursCfg.autoBreaks ? '' : 'checked'}> Manual — crew press "Start break" themselves</label>
+            <label class="row text-small" style="gap:.4rem"><input type="radio" name="wh-breaks" value="auto" ${hoursCfg.autoBreaks ? 'checked' : ''}> Automatic — after 6 h, 30 min break is deducted</label>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" type="submit">${icon('check', 16)} Save working-hours rules</button>
+        <p class="text-xs text-muted" style="margin:.7rem 0 0">Changing these rules does not rewrite history: use "Recalculate categories" on the Attendance screen to re-split completed shifts under the new rules.</p>
       </form>
     </div>
 
@@ -129,6 +171,27 @@ export async function render(root, ctx) {
     await store.saveSettings({ autoLockMinutes: mins });
     await logAction(AUDIT_ACTIONS.SETTINGS_CHANGED, `Auto-lock set to ${mins} minutes.`);
     toast('Security settings saved.', 'success');
+  });
+
+  /* Working hours (Phase 4) */
+  content.querySelector('#hours-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const ordinary = parseFloat(content.querySelector('#wh-ordinary').value);
+    const restH = parseFloat(content.querySelector('#wh-rest').value);
+    const toMins = (hhmm) => { const [h, m] = String(hhmm || '0:0').split(':').map(Number); return (h * 60) + (m || 0); };
+    const ns = toMins(content.querySelector('#wh-night-start').value);
+    const ne = toMins(content.querySelector('#wh-night-end').value);
+    const autoBreaks = content.querySelector('input[name="wh-breaks"]:checked')?.value === 'auto';
+    if (!Number.isFinite(ordinary) || ordinary < 1 || ordinary > 14) { toast('Ordinary hours must be between 1 and 14.', 'warn'); return; }
+    if (!Number.isFinite(restH) || restH < 1 || restH > 24) { toast('Rest warning must be between 1 and 24 hours.', 'warn'); return; }
+    if (ns === ne) { toast('The night window cannot start and end at the same time.', 'warn'); return; }
+    await hours.saveHoursSettings({
+      ordinaryDailyHours: ordinary,
+      nightStartMinute: ns, nightEndMinute: ne,
+      minRestMinutes: Math.round(restH * 60),
+      autoBreaks
+    });
+    toast('Working-hours rules saved. Use "Recalculate categories" on the Attendance screen to refresh completed shifts.', 'success', 6000);
   });
 
   /* Sync now */

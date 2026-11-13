@@ -50,7 +50,12 @@ const COLLECTION_TO_STORE = {
   crew_banking: STORES.CREW_BANKING,
   vessels: STORES.VESSELS,
   trips: STORES.TRIPS,
-  assignments: STORES.ASSIGNMENTS
+  assignments: STORES.ASSIGNMENTS,
+  /* Phase 4: breaks and corrections ride on clock events; catch & quota get
+     their own collections. */
+  break_records: STORES.BREAK_RECORDS,
+  catch_records: STORES.CATCH_RECORDS,
+  quota_allocations: STORES.QUOTA_ALLOCATIONS
 };
 
 let _online = (typeof navigator !== 'undefined') ? navigator.onLine : true;

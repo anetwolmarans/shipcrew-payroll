@@ -8,8 +8,8 @@ export const APP = {
   name: 'ShipCrew Payroll',
   shortName: 'ShipCrew',
   tagline: 'Fishing fleet payroll — Namibia',
-  version: '2.1.0',
-  buildPhase: 3,          // Which development phase this build belongs to (see docs/06-roadmap.md)
+  version: '2.2.0',
+  buildPhase: 4,          // Which development phase this build belongs to (see docs/06-roadmap.md)
   totalPhases: 6,
   country: 'Namibia',
   currency: 'NAD',        // Namibian Dollar
@@ -19,7 +19,7 @@ export const APP = {
 };
 
 /** Service worker cache version. Bump this whenever app files change (see docs/03-deployment). */
-export const SW_VERSION = 'shipcrew-v2.1.0-phase3';
+export const SW_VERSION = 'shipcrew-v2.2.0-phase4';
 
 /** Firebase JS SDK version pinned in index.html import map (keep in sync). */
 export const FIREBASE_SDK_VERSION = '13.2.0';
@@ -91,3 +91,104 @@ export const CREW_POSITIONS = [
 
 /** Identity document types for the crew register. */
 export const ID_TYPES = ['Namibian ID', 'Passport', 'Work Permit', 'Seaman\u2019s Book', 'Other'];
+
+/* ==========================================================================
+ * PHASE 4 — WORKING HOURS
+ * ========================================================================== */
+
+/**
+ * Default hour-classification rules (Phase 4). Every value is a company
+ * POLICY choice — it can be changed in Settings → Working hours — and is
+ * clearly separated from STATUTORY rules (pay RATES, which arrive verified
+ * in Phase 5 and are never guessed here).
+ */
+export const DEFAULT_HOURS_SETTINGS = {
+  ordinaryDailyHours: 9,        // hours per day after which time counts as overtime
+  nightStartMinute: 22 * 60,    // 22:00 — night work starts
+  nightEndMinute: 5 * 60,       // 05:00 — night work ends (spans midnight)
+  minRestMinutes: 11 * 60,      // rest warning threshold between shifts (11 h)
+  autoBreaks: false,            // break rules: automatic vs manual (decision point)
+  autoBreakAfterMinutes: 6 * 60,// manual mode: remind after 6 h without a break
+  autoBreakMinutes: 30          // automatic mode: deduct 30 min after 6 h
+};
+
+/** The five working-hour categories (labels used everywhere). */
+export const HOUR_CATEGORIES = [
+  { key: 'ordinary',        label: 'Ordinary',           color: 'info' },
+  { key: 'overtime',        label: 'Overtime',           color: 'warning' },
+  { key: 'night',           label: 'Night work',         color: 'navy' },
+  { key: 'sunday',          label: 'Sunday work',        color: 'violet' },
+  { key: 'public_holiday',  label: 'Public holiday',     color: 'teal' }
+];
+
+/**
+ * Official Namibian public holidays — the RULES of the Public Holidays Act,
+ * 1990 (Act 26 of 1990): fixed annual dates, Easter-based days computed with
+ * the Anonymous Gregorian algorithm, and the Monday-after-Sunday rule.
+ * Verified against the Ministry's 2026 calendar (mict.gov.na) and the
+ * Embassy of Namibia (Helsinki) list; see docs/11-working-hours-catch.md.
+ */
+export const NAMIBIA_PUBLIC_HOLIDAYS = {
+  fixed: [
+    { month: 1,  day: 1,  name: "New Year's Day" },
+    { month: 3,  day: 21, name: 'Independence Day' },
+    { month: 5,  day: 4,  name: 'Cassinga Day' },
+    { month: 5,  day: 25, name: 'Africa Day' },
+    { month: 5,  day: 28, name: 'Genocide Remembrance Day' },
+    { month: 8,  day: 26, name: "Heroes' Day" },
+    { month: 12, day: 10, name: 'International Human Rights Day' },
+    { month: 12, day: 25, name: 'Christmas Day' },
+    { month: 12, day: 26, name: 'Day of Goodwill' }
+  ],
+  /** Easter-based: { offset from Easter Sunday in days } */
+  easterBased: [
+    { offset: -2,  name: 'Good Friday' },
+    { offset: 1,   name: 'Easter Monday' },
+    { offset: 39,  name: 'Ascension Day' }
+  ],
+  /** The Act: when a holiday falls on a Sunday, the following Monday is also a holiday. */
+  mondayRule: true,
+  source: 'Public Holidays Act, 1990 (Act 26 of 1990) — as listed for 2026 by the Ministry of Information and Communication Technology'
+};
+
+/* ==========================================================================
+ * PHASE 4 — CATCH & QUOTA
+ * ========================================================================== */
+
+/** The six quota-commission allocation methods (project brief, chapter 10). */
+export const QUOTA_METHODS = [
+  {
+    key: 'equal_split', label: 'Equal split',
+    description: 'The catch value (or quota payout) is divided equally among all crew members on the trip.'
+  },
+  {
+    key: 'percentage', label: 'Percentage shares',
+    description: 'Each crew member receives a fixed percentage per their contract. Shares should total 100%.'
+  },
+  {
+    key: 'fixed_weight', label: 'Fixed weight per role',
+    description: 'A fixed tonnage (or amount) per position — e.g. 2 t for a deckhand, 3.5 t for the skipper.'
+  },
+  {
+    key: 'rank_based', label: 'Rank-based points',
+    description: 'Points per rank/position (skipper 5, mate 4, deckhand 2…) — each share = points ÷ total points.'
+  },
+  {
+    key: 'contractual', label: 'Contractual formula',
+    description: 'A written contractual arrangement captured as a formula note — recorded here, settled in payroll (Phase 5).'
+  },
+  {
+    key: 'custom', label: 'Custom per member',
+    description: 'Any custom amount per crew member, entered manually with a reason.'
+  }
+];
+
+/** Common Namibian fishing species for the catch register dropdown. */
+export const CATCH_SPECIES = [
+  'Hake (Merluccius capensis)', 'Hake (Merluccius paradoxus)', 'Horse mackerel',
+  'Monkfish', 'Kingklip', 'Snoek', 'Cape fur seal bycatch', 'Swordfish',
+  'Tuna (Yellowfin)', 'Tuna (Bigeye)', 'Pilchard (Sardine)', 'Other'
+];
+
+/** Catch record categories. */
+export const CATCH_CATEGORIES = ['Whole round', 'Gutted', 'Headed and gutted', 'Filleted', 'Minced', 'Bycatch', 'Discarded'];
