@@ -4,6 +4,14 @@
 
 PLAIN ENGLISH — two ways to get ShipCrew Payroll onto an Android phone:
 
+> **An APK already exists.** A signed APK (v2.2.0, Phase 4) was built with
+> Google's Bubblewrap tool and delivered alongside this project
+> (`ShipCrew-Payroll-v2.2.0.apk`, with the signing keystore and install
+> notes in the delivery folder — see `README-INSTALL.md` there). The website
+> also serves `.well-known/assetlinks.json`, so the APK opens the app
+> full-screen without a browser bar. Use Route A for everyday crew phones;
+> use the built APK (or rebuild per Route B) for formal distribution.
+
 | | Route A — *Install the app* (recommended) | Route B — *Real APK file* |
 |---|---|---|
 | What it is | Chrome turns the website into an installed app | A signed `.apk` file you install manually (or send to Play Store) |
