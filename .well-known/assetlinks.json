@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "na.atlanticharvest.shipcrew",
+      "sha256_cert_fingerprints": [
+        "E8:60:D7:FF:D0:74:87:E2:8D:1D:86:D6:61:11:D3:08:61:E5:23:D2:A4:9E:5E:51:F6:12:A4:64:F8:A8:7B:3B"
+      ]
+    }
+  }
+]
