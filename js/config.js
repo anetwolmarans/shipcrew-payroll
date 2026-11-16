@@ -8,7 +8,7 @@ export const APP = {
   name: 'ShipCrew Payroll',
   shortName: 'ShipCrew',
   tagline: 'Fishing fleet payroll — Namibia',
-  version: '2.3.0',
+  version: '2.3.1',
   buildPhase: 5,          // Which development phase this build belongs to (see docs/06-roadmap.md)
   totalPhases: 6,
   country: 'Namibia',

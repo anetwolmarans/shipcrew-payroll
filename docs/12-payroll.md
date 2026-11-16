@@ -52,6 +52,26 @@ Two important notes:
 
 ## 2. Contracts (the "Contracts" screen)
 
+**Is this the physical contract the crew member signs?** No — and that is
+deliberate. The signed **paper contract stays in your HR file** (or your
+cloud drive). What the app records is the contract's **pay terms** — type,
+rate, effective dates: exactly what payroll needs to calculate with, and
+exactly what an auditor wants to see versioned. So the workflow is:
+
+1. The crew member signs the paper contract; you file it and give it a
+   reference (e.g. `HR/CONTRACTS/2026/041`).
+2. You enter its pay terms here, including the **signed-on date** and the
+   **signed-contract reference** fields.
+3. Every payslip then shows that reference — any payslip can be traced back
+   to the signed original in seconds.
+
+Why not upload the signed PDF into the app? The app is offline-first: every
+document would have to be copied to every device's local database (bloating
+phones at sea), and employment contracts are the most sensitive paper a
+company holds — best kept where you already control access. If you later
+want in-app storage of signed documents, that is a Phase 6+ feature to
+discuss (Firebase has a file-storage service with proper access rules).
+
 Three types, each effective-dated with full history:
 
 | Type | What it means | How the hourly rate is derived |
@@ -96,19 +116,26 @@ version — see `rules/firestore.rules`).
 - Admins see the fleet's payslips (**Payslips** screen); each crew member
   sees **only their own** on their crew home screen ("My payslips") —
   enforced in the app AND in the server rules.
-- Every payslip contains: company details, employee details, trip + pay
-  date, the worked-time summary (the five categories), **every earning and
-  deduction on its own line with its calculation**, gross, deductions,
-  **net pay**, and the **employer SSC** shown separately (a legal payslip
-  requirement — it is not deducted from pay).
+- Every payslip PDF is print-ready and auditable at a glance: navy company
+  header, **EMPLOYEE** and **PAY PERIOD** cards (the employee card shows the
+  position, employee number, contract type **and the signed-contract
+  reference**), a worked-time strip (the five categories in boxes), then
+  the **EARNINGS** and **DEDUCTIONS** tables — every line on its own row
+  with its calculation in the DETAIL column and the amount right-aligned —
+  a highlighted **NET PAY** band, and an **EMPLOYER CONTRIBUTIONS** box
+  (the employer SSC, shown separately because it is NOT deducted from pay —
+  a legal payslip requirement). The footer records which app version
+  generated it and the payslip ID.
 - The PDF is generated **on the device** by the app itself
   (`js/core/payslip-pdf.js` — no internet, no external library). It prints
   on A4 and can be shared from the phone.
 
 ## 5. What the demo data contains (try it immediately)
 
-- **Frans Nangolo** — hourly contract at **N$28.50/h** since 1 Jan 2026.
-- **Selma Uugwanga** — daily-at-sea contract at **N$245.00/day**.
+- **Frans Nangolo** — hourly contract at **N$28.50/h** since 1 Jan 2026,
+  signed 18 Dec 2025, reference `HR/CONTRACTS/2026/027`.
+- **Selma Uugwanga** — daily-at-sea contract at **N$245.00/day**, signed
+  19 Dec 2025, reference `HR/CONTRACTS/2026/031`.
 - Trip **TRP-2026-013** is closed and payroll-ready, with an equal-split
   quota allocation (48,475 kg each) and classified hours.
 - Build it with a commission price of, say, **N$9.00/kg** and check Frans's
@@ -120,7 +147,7 @@ version — see `rules/firestore.rules`).
 
 | Store / collection | What it holds |
 |---|---|
-| `contracts` | Effective-dated contract versions (never deleted) |
+| `contracts` | Effective-dated contract versions with signed-on date + signed-contract reference (never deleted) |
 | `allowances` | Allowance entries per crew + trip |
 | `deductions` | Adjustment entries (with reasons) — pending settlement |
 | `payroll_calculations` | The runs: draft → locked, with every payslip line |

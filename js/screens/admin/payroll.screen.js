@@ -316,7 +316,7 @@ export function showPayslipDetail(p, run, company) {
   openModal({
     title: `Payslip — ${p.crewName}`, icon: 'file-text', wide: true,
     body: `
-      <p class="text-small" style="margin:0 0 8px">${esc(p.position || '')} · ${esc(p.contractType)} · Trip ${esc(run.tripRef)} · ${esc(run.vesselName || '')}</p>
+      <p class="text-small" style="margin:0 0 8px">${esc(p.position || '')} · ${esc(p.contractType)}${p.signedContractRef ? ` · Signed contract: <b>${esc(p.signedContractRef)}</b>` : ''} · Trip ${esc(run.tripRef)} · ${esc(run.vesselName || '')}</p>
       <div class="table-wrap"><table class="table">
         <thead><tr><th>Line</th><th>Detail</th><th class="text-right">Amount</th></tr></thead>
         <tbody>${rows}</tbody>

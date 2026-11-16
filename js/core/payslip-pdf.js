@@ -2,19 +2,27 @@
  * payslip-pdf.js — Offline PDF payslips (Phase 5), no external libraries.
  *
  * PLAIN ENGLISH: this module writes a REAL PDF file (the same format Word
- * or Excel saves) by hand — page, fonts, text, lines — so payslips can be
- * downloaded and printed AT SEA with no internet and no CDN dependency.
+ * or Excel saves) by hand — page, fonts, text, lines, boxes — so payslips
+ * can be downloaded and printed AT SEA with no internet and no CDN.
  *
- * What it supports (deliberately minimal and robust):
- *   - One A4 page per payslip, portrait
- *   - Built-in Helvetica (regular + bold): ASCII + basic Latin-1 text
- *   - Right-aligned money columns, ruled section tables
- *   - WinAnsi encoding; unsafe characters are substituted (the payslip
- *     content itself is plain words + numbers)
+ * The payslip is designed to be print-ready and auditable at a glance:
+ *   ┌────────────────────────────────────────────────────────┐
+ *   │ NAVY HEADER — company details · PAYSLIP · trip, date    │
+ *   ├───────────────┬────────────────────────────────────────┤
+ *   │ EMPLOYEE card │ PAY PERIOD card (trip, vessel, date)    │
+ *   ├───────────────┴────────────────────────────────────────┤
+ *   │ WORKED TIME strip (ordinary · OT · night · Sun · hol)   │
+ *   ├────────────────────────────────────────────────────────┤
+ *   │ EARNINGS table (description · how it was calculated · N$)│
+ *   │ Gross pay …                                             │
+ *   │ DEDUCTIONS table (PAYE, SSC)  Total deductions …        │
+ *   │ ███ NET PAY band ███                                    │
+ *   │ EMPLOYER CONTRIBUTIONS box (SSC employer — not deducted)│
+ *   │ footer: generator version · statutory rules · payslip ID│
+ *   └────────────────────────────────────────────────────────┘
  *
- * Every payslip shows: company block, employee block, trip + pay date,
- * EVERY earning and deduction on its own line, employer SSC (a legal
- * payslip requirement), and the net pay — see docs/12-payroll.md.
+ * Built-in Helvetica (regular + bold), WinAnsi encoding; unsafe characters
+ * are substituted (payslip content is plain words + numbers).
  */
 
 /* ---------------- PDF primitives (tiny PDF writer) ---------------- */
@@ -35,9 +43,9 @@ class PdfPage {
   constructor(width, height) {
     this.w = width; this.h = height;
     this.ops = [];          // content stream operators
-    this.fontRegular = null; this.fontBold = null; // resource refs set later
   }
-  text(x, y, size, str, { bold = false, align = 'left', color = null } = {}) {
+  /** Draw a text string. align: 'left' | 'right' | 'center'. tracking: letter spacing. */
+  text(x, y, size, str, { bold = false, align = 'left', color = null, tracking = 0 } = {}) {
     const font = bold ? '/F2' : '/F1';
     let tx = x;
     const width = PdfPage.textWidth(String(str), size, bold);
@@ -45,7 +53,7 @@ class PdfPage {
     else if (align === 'center') tx = x - width / 2;
     let op = '';
     if (color) op += `${color.r} ${color.g} ${color.b} rg\n`;
-    op += `BT ${font} ${size} Tf ${tx.toFixed(2)} ${y.toFixed(2)} Td (${pdfEscapeText(str)}) Tj ET`;
+    op += `BT ${font} ${size} Tf ${tracking} Tc ${tx.toFixed(2)} ${y.toFixed(2)} Td (${pdfEscapeText(str)}) Tj ET`;
     if (color) op += `\n0 0 0 rg`;
     this.ops.push(op);
     return width;
@@ -58,11 +66,14 @@ class PdfPage {
     if (color) op += `\n0 0 0 RG`;
     this.ops.push(op);
   }
-  rect(x, y, w, h, { fill = null } = {}) {
+  /** Filled (and optionally stroked) rectangle. */
+  rect(x, y, w, h, { fill = null, stroke = null, strokeWidth = 0.8 } = {}) {
     let op = '';
     if (fill) op += `${fill.r} ${fill.g} ${fill.b} rg\n`;
-    op += `${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re f`;
+    if (stroke) op += `${stroke.r} ${stroke.g} ${stroke.b} RG ${strokeWidth} w\n`;
+    op += `${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re ${fill && stroke ? 'B' : fill ? 'f' : 'S'}`;
     if (fill) op += `\n0 0 0 rg`;
+    if (stroke) op += `\n0 0 0 RG`;
     this.ops.push(op);
   }
   /** Approximate Helvetica text width (metrics table below). */
@@ -96,7 +107,7 @@ const HELV_METRICS = {
 /** Assemble the PDF file bytes from pages. */
 function buildPdf(pages) {
   const enc = new TextEncoder();
-  const objects = [];      // array of Uint8Array (body per object)
+  const objects = [];      // array of object bodies
   const pushObj = (body) => { objects.push(body); return objects.length; };
 
   // 1: Catalog, 2: Pages, 3: F1 (Helvetica), 4: F2 (Helvetica-Bold)
@@ -106,11 +117,9 @@ function buildPdf(pages) {
   pushObj(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`);
   pushObj(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`);
 
-  const pageIds = [];
   pages.forEach((page, i) => {
-    const contentId = 5 + i * 2 + 1;
     const pageId = 5 + i * 2;
-    pageIds.push(pageId);
+    const contentId = pageId + 1;
     pushObj(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${page.w} ${page.h}] /Resources << /Font << /F1 ${f1Id} 0 R /F2 ${f2Id} 0 R >> >> /Contents ${contentId} 0 R >>`);
     const stream = page.ops.join('\n');
     pushObj(`<< /Length ${enc.encode(stream).length} >>\nstream\n${stream}\nendstream`);
@@ -139,9 +148,18 @@ function buildPdf(pages) {
 
 /* ---------------- the payslip layout ---------------- */
 
-const NAVY = { r: 0.04, g: 0.145, b: 0.25 };   // #0A2540
-const GREY_LINE = { r: 0.82, g: 0.85, b: 0.88 };
-const LIGHT_BG = { r: 0.955, g: 0.965, b: 0.97 };
+/* Design tokens (match the app's navy + teal brand). */
+const NAVY  = { r: 0.040, g: 0.145, b: 0.251 };   // #0A2540
+const TEAL  = { r: 0.055, g: 0.486, b: 0.529 };   // #0E7C87
+const INK   = { r: 0.118, g: 0.145, b: 0.173 };   // #1E252C
+const MUTED = { r: 0.447, g: 0.490, b: 0.533 };   // #727D88
+const LINE  = { r: 0.835, g: 0.867, b: 0.898 };   // #D5DDE5
+const CARD  = { r: 0.937, g: 0.953, b: 0.965 };   // #EFF3F6
+const ZEBRA = { r: 0.965, g: 0.973, b: 0.980 };   // #F6F8FA
+const HEAD  = { r: 0.912, g: 0.937, b: 0.956 };   // #E8EFF4
+
+const WHITE = { r: 1, g: 1, b: 1 };
+const PALE  = { r: 0.788, g: 0.847, b: 0.886 };   // header sub-text
 
 function money(cents) {
   const v = (Math.round(cents) / 100).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -151,136 +169,180 @@ function hrs(mins) {
   const m = Math.round(mins || 0);
   return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
 }
+/** Trim a string with "..." until it fits maxW at the given size. */
+function fit(str, size, bold, maxW) {
+  let s = String(str ?? '');
+  if (PdfPage.textWidth(s, size, bold) <= maxW) return s;
+  while (s.length && PdfPage.textWidth(s + '...', size, bold) > maxW) s = s.slice(0, -1);
+  return s + '...';
+}
 
 /**
  * Render one payslip (record from payroll.service) into PDF bytes.
- * `company` is the company profile record; `meta` carries extra labels.
+ * `company` is the company profile record; `meta` carries version stamps.
  */
 export function payslipPdfBytes(payslip, company, meta = {}) {
   const W = 595.28, H = 841.89;   // A4 portrait in points
-  const M = 48;                    // page margin
-  const page = new PdfPage(W, H);
+  const M = 46;                    // page margin
   const right = W - M;
-  let y = H - M;
+  const page = new PdfPage(W, H);
 
-  /* Header band */
-  page.rect(0, H - 92, W, 92, { fill: NAVY });
-  page.text(M, H - 40, 17, company?.name || 'ShipCrew Payroll', { bold: true, color: { r: 1, g: 1, b: 1 } });
-  page.text(M, H - 58, 9, `${company?.address || ''}   ${company?.phone || ''}`.trim(), { color: { r: 0.85, g: 0.88, b: 0.92 } });
-  page.text(M, H - 72, 9, company?.email || '', { color: { r: 0.85, g: 0.88, b: 0.92 } });
-  page.text(right, H - 40, 15, 'PAYSLIP', { bold: true, align: 'right', color: { r: 1, g: 1, b: 1 } });
-  page.text(right, H - 58, 9, `Trip ${payslip.tripRef || ''}`, { align: 'right', color: { r: 0.85, g: 0.88, b: 0.92 } });
-  page.text(right, H - 72, 9, `Pay date: ${payslip.payDate || ''}`, { align: 'right', color: { r: 0.85, g: 0.88, b: 0.92 } });
+  /* column geometry for the tables */
+  const descX = M + 10;
+  const detX  = M + 225;
+  const amtR  = right - 10;
 
-  y = H - 120;
+  const lines = payslip.lines || [];
+  const earnings = lines.filter(l => l.kind === 'earning');
+  const deductions = lines.filter(l => l.kind === 'deduction');
+  const infos = lines.filter(l => l.kind === 'info');
 
-  /* Employee block */
-  page.text(M, y, 13, payslip.crewName || '', { bold: true });
-  page.text(M, y - 16, 9, [
-    payslip.position ? `Position: ${payslip.position}` : '',
-    payslip.crewId ? `Employee no: ${payslip.crewId}` : '',
-    `Contract: ${payslip.contractType || ''}`
-  ].filter(Boolean).join('    ·    '), { color: { r: 0.35, g: 0.4, b: 0.45 } });
-  if (payslip.vesselName) {
-    page.text(M, y - 30, 9, `Vessel: ${payslip.vesselName}    ·    Period: ${payslip.periodLabel || ''}`, { color: { r: 0.35, g: 0.4, b: 0.45 } });
-  }
-  y -= 52;
+  /* ============ 1. HEADER BAND ============ */
+  const bandH = 96;
+  page.rect(0, H - bandH, W, bandH, { fill: NAVY });
+  page.rect(0, H - bandH - 4, W, 4, { fill: TEAL });            // accent underline
+  page.text(M, H - 36, 16, company?.name || 'ShipCrew Payroll', { bold: true, color: WHITE });
+  page.text(M, H - 52, 8.5, company?.address || '', { color: PALE });
+  page.text(M, H - 65, 8.5, `${company?.phone || ''}   ${company?.email || ''}`.trim(), { color: PALE });
 
-  /* Hour categories summary (worked time this trip) */
+  page.text(right, H - 40, 21, 'PAYSLIP', { bold: true, align: 'right', color: WHITE, tracking: 2 });
+  page.text(right, H - 56, 9, `Trip ${payslip.tripRef || ''}`, { align: 'right', color: PALE });
+  page.text(right, H - 69, 9, `Pay date: ${payslip.payDate || ''}`, { align: 'right', color: PALE });
+
+  /* ============ 2. EMPLOYEE + PERIOD CARDS ============ */
+  const cardTop = H - bandH - 18;      // top edge of the cards
+  const cardH = 62;
+  const cardW = (right - M - 14) / 2;
+  const card = (x, title, mainText, sub1, sub2) => {
+    page.rect(x, cardTop - cardH, cardW, cardH, { fill: CARD });
+    page.rect(x, cardTop - cardH, 3, cardH, { fill: TEAL });
+    page.text(x + 14, cardTop - 16, 7, title, { bold: true, color: MUTED, tracking: 1.4 });
+    page.text(x + 14, cardTop - 32, 11.5, fit(mainText, 11.5, true, cardW - 28), { bold: true, color: NAVY });
+    if (sub1) page.text(x + 14, cardTop - 45, 8.5, fit(sub1, 8.5, false, cardW - 28), { color: INK });
+    if (sub2) page.text(x + 14, cardTop - 57, 8.5, fit(sub2, 8.5, false, cardW - 28), { color: INK });
+  };
+  card(M, 'EMPLOYEE',
+    payslip.crewName || '',
+    [payslip.position, payslip.crewId ? `Employee no: ${payslip.crewId}` : ''].filter(Boolean).join('   ·   '),
+    [payslip.contractType, payslip.signedContractRef ? `Signed contract: ${payslip.signedContractRef}` : ''].filter(Boolean).join('   ·   '));
+  card(M + cardW + 14, 'PAY PERIOD',
+    payslip.periodLabel || `Trip ${payslip.tripRef || ''}`,
+    payslip.vesselName ? `Vessel: ${payslip.vesselName}` : '',
+    payslip.payDate ? `Payment date: ${payslip.payDate}` : '');
+
+  let y = cardTop - cardH;
+
+  /* ============ 3. WORKED-TIME STRIP ============ */
   const cats = payslip.hourCategories || {};
-  const catRow = [
-    ['Ordinary', cats.ordinary], ['Overtime', cats.overtime], ['Night', cats.night],
-    ['Sunday', cats.sunday], ['Public holiday', cats.public_holiday]
+  const boxes = [
+    ['ORDINARY', cats.ordinary], ['OVERTIME', cats.overtime], ['NIGHT', cats.night],
+    ['SUNDAY', cats.sunday], ['PUBLIC HOLIDAY', cats.public_holiday]
   ];
-  const hasCats = catRow.some(([, v]) => v > 0);
-  if (hasCats) {
-    page.text(M, y, 10, 'WORKED TIME THIS TRIP', { bold: true, color: NAVY });
-    y -= 16;
-    const colW = (W - 2 * M) / catRow.length;
-    catRow.forEach(([label, v], i) => {
-      const cx = M + i * colW + colW / 2;
-      page.text(cx, y + 14, 8, label, { align: 'center', color: { r: 0.35, g: 0.4, b: 0.45 } });
-      page.text(cx, y, 11, hrs(v), { align: 'center', bold: true });
-    });
-    y -= 30;
-    page.line(M, y, right, y, { width: 0.7, color: GREY_LINE });
+  if (boxes.some(([, v]) => v > 0)) {
     y -= 22;
+    page.text(M, y, 9, 'WORKED TIME THIS TRIP', { bold: true, color: NAVY, tracking: 1.4 });
+    y -= 10;
+    const gap = 8;
+    const boxW = (right - M - gap * (boxes.length - 1)) / boxes.length;
+    const boxH = 34;
+    boxes.forEach(([label, v], i) => {
+      const bx = M + i * (boxW + gap);
+      page.rect(bx, y - boxH, boxW, boxH, { fill: CARD, stroke: LINE, strokeWidth: 0.7 });
+      page.text(bx + boxW / 2, y - 12, 6.3, label, { align: 'center', bold: true, color: MUTED, tracking: 0.7 });
+      page.text(bx + boxW / 2, y - 26, 10.5, hrs(v), { align: 'center', bold: true, color: NAVY });
+    });
+    y -= boxH;
   }
 
-  /* Earnings table */
-  const drawTable = (title, rows, kind) => {
-    page.text(M, y, 10, title, { bold: true, color: NAVY });
-    y -= 8;
-    page.line(M, y, right, y, { width: 0.7, color: GREY_LINE });
-    y -= 6;
-    for (const line of rows) {
-      if (line.kind === 'info') {
-        y -= 14;
-        page.text(M, y, 8.5, `Note: ${line.label} - ${line.detail || ''}`, { color: { r: 0.45, g: 0.5, b: 0.55 } });
-        continue;
-      }
-      y -= 17;
-      page.text(M + 4, y, 9.5, line.label, { bold: false });
-      page.text(M + 4 + 210, y, 8.5, String(line.detail || ''), { color: { r: 0.45, g: 0.5, b: 0.55 } });
-      page.text(right, y, 9.5, money(line.amountCents), { align: 'right', bold: false });
+  /* ============ 4. TABLES ============ */
+  const totalRows = earnings.length + deductions.length;
+  const rowH = totalRows > 14 ? 13 : totalRows > 10 ? 14.5 : 16.5;
+
+  const sectionTitle = (title) => {
+    y -= 26;
+    page.text(M, y, 9, title, { bold: true, color: NAVY, tracking: 1.4 });
+    y -= 7;
+    page.line(M, y, right, y, { width: 0.9, color: LINE });
+  };
+  const tableHead = () => {
+    y -= 17;
+    page.rect(M, y, right - M, 17, { fill: HEAD });
+    page.text(descX, y + 5.5, 7, 'DESCRIPTION', { bold: true, color: MUTED, tracking: 0.8 });
+    page.text(detX, y + 5.5, 7, 'DETAIL', { bold: true, color: MUTED, tracking: 0.8 });
+    page.text(amtR, y + 5.5, 7, 'AMOUNT (N$)', { bold: true, color: MUTED, tracking: 0.8, align: 'right' });
+  };
+  const row = (i, label, detail, cents) => {
+    y -= rowH;
+    if (i % 2 === 1) page.rect(M, y, right - M, rowH, { fill: ZEBRA });
+    page.text(descX, y + (rowH - 9.5) / 2 + 1, 9.5, fit(label, 9.5, false, detX - descX - 14), { color: INK });
+    if (detail) page.text(detX, y + (rowH - 8) / 2 + 1, 8, fit(detail, 8, false, 205), { color: MUTED });
+    page.text(amtR, y + (rowH - 9.5) / 2 + 1, 9.5, money(cents), { align: 'right', color: INK });
+  };
+  const totalRow = (label, cents, strong = false) => {
+    y -= 19;
+    if (strong) {
+      page.rect(right - 250, y - 3, 250, 19, { fill: HEAD });
+      page.text(right - 240, y + 2.5, 9.5, label, { bold: true, color: NAVY });
+      page.text(amtR, y + 2.5, 10.5, money(cents), { align: 'right', bold: true, color: NAVY });
+    } else {
+      page.text(right - 240, y + 2.5, 9.5, label, { color: INK });
+      page.text(amtR, y + 2.5, 10, money(cents), { align: 'right', color: INK });
     }
-    y -= 6;
-    page.line(M, y, right, y, { width: 0.7, color: GREY_LINE });
-    y -= 4;
   };
 
-  const earnings = (payslip.lines || []).filter(l => l.kind === 'earning');
-  const deductions = (payslip.lines || []).filter(l => l.kind === 'deduction');
-  const infos = (payslip.lines || []).filter(l => l.kind === 'info');
-  drawTable('EARNINGS', earnings, 'earning');
+  /* Earnings */
+  sectionTitle('EARNINGS');
+  tableHead();
+  if (earnings.length) {
+    earnings.forEach((l, i) => row(i, l.label, l.detail, l.amountCents));
+  } else {
+    y -= rowH;
+    page.text(descX, y + 4, 9, 'No time-based or other earnings recorded for this period.', { color: MUTED });
+  }
+  totalRow('Gross pay', payslip.grossCents, true);
 
-  /* Totals */
-  const totalRow = (label, cents, emphasis) => {
-    y -= 20;
-    if (emphasis) page.rect(M, y - 5, right - M, 22, { fill: LIGHT_BG });
-    page.text(right - 110, y + 3, 10, label, { bold: true, color: NAVY });
-    page.text(right, y + 3, 11, money(cents), { align: 'right', bold: true, color: NAVY });
-  };
-  totalRow('GROSS PAY', payslip.grossCents, false);
-  for (const d of deductions) { /* rows already drawn below */ }
-  y -= 8;
-
+  /* Deductions */
   if (deductions.length) {
-    drawTable('DEDUCTIONS', deductions, 'deduction');
-    totalRow('TOTAL DEDUCTIONS', payslip.deductionCents, false);
-    y -= 8;
+    sectionTitle('DEDUCTIONS');
+    tableHead();
+    deductions.forEach((l, i) => row(i, l.label, l.detail, l.amountCents));
+    totalRow('Total deductions', payslip.deductionCents, true);
   }
 
-  /* NET PAY band */
-  y -= 6;
-  page.rect(M, y - 34, right - M, 40, { fill: NAVY });
-  page.text(M + 10, y - 9, 12, 'NET PAY', { bold: true, color: { r: 1, g: 1, b: 1 } });
-  page.text(right - 10, y - 9, 14, money(payslip.netCents), { align: 'right', bold: true, color: { r: 1, g: 1, b: 1 } });
-  y -= 52;
-
-  /* Employer contributions (shown separately — legal payslip requirement) */
-  page.text(M, y, 9, 'EMPLOYER CONTRIBUTIONS (not deducted from pay)', { bold: true, color: NAVY });
+  /* ============ 5. NET PAY BAND ============ */
   y -= 16;
-  page.text(M + 4, y, 9, 'SSC employer (0.9%)');
-  page.text(right, y, 9.5, money(payslip.employerSscCents || 0), { align: 'right' });
-  y -= 22;
+  const netH = 42;
+  y -= netH;
+  page.rect(M, y, right - M, netH, { fill: NAVY });
+  page.rect(M, y, 4, netH, { fill: TEAL });
+  page.text(M + 16, y + 16, 12.5, 'NET PAY', { bold: true, color: WHITE, tracking: 2 });
+  page.text(right - 14, y + 15, 15, money(payslip.netCents), { align: 'right', bold: true, color: WHITE });
 
-  /* Notes / adjustments */
+  /* ============ 6. EMPLOYER CONTRIBUTIONS ============ */
+  y -= 18;
+  const empH = 44;
+  y -= empH;
+  page.rect(M, y, right - M, empH, { fill: CARD, stroke: LINE, strokeWidth: 0.7 });
+  page.text(M + 12, y + empH - 15, 7, 'EMPLOYER CONTRIBUTIONS — NOT DEDUCTED FROM PAY', { bold: true, color: MUTED, tracking: 0.8 });
+  page.text(M + 12, y + 13, 9.5, 'SSC employer share (0.9%)', { color: INK });
+  page.text(right - 12, y + 13, 9.5, money(payslip.employerSscCents || 0), { align: 'right', color: INK });
+
+  /* ============ 7. NOTES + FOOTER ============ */
+  y -= 18;
   for (const info of infos) {
-    page.text(M, y, 8.5, `Note: ${info.label} - ${info.detail || ''}`, { color: { r: 0.45, g: 0.5, b: 0.55 } });
-    y -= 14;
+    page.text(M, y, 8, fit(`Note: ${info.label} - ${info.detail || ''}`, 8, false, right - M), { color: MUTED });
+    y -= 12;
   }
   if (meta.note) {
-    page.text(M, y, 8.5, meta.note, { color: { r: 0.45, g: 0.5, b: 0.55 } });
-    y -= 14;
+    page.text(M, y, 8, fit(meta.note, 8, false, right - M), { color: MUTED });
+    y -= 12;
   }
 
-  /* Footer: generation stamp */
-  page.line(M, M + 22, right, M + 22, { width: 0.7, color: GREY_LINE });
-  page.text(M, M + 8, 7.5,
-    `Generated by ShipCrew Payroll (v${meta.appVersion || ''}) - ${meta.generatedAt || ''} - statutory rules: PAYE 2026/27, SSC 0.9% (ceiling N$12,500), Labour Act 2007 premiums.`,
-    { color: { r: 0.5, g: 0.55, b: 0.6 } });
-  page.text(right, M + 8, 7.5, `Payslip ID: ${payslip.id || ''}`, { align: 'right', color: { r: 0.5, g: 0.55, b: 0.6 } });
+  page.line(M, 64, right, 64, { width: 0.7, color: LINE });
+  page.text(M, 52, 7, `Generated by ShipCrew Payroll v${meta.appVersion || ''} - ${meta.generatedAt || ''} (Africa/Windhoek)`, { color: MUTED });
+  page.text(M, 42, 7, 'Statutory rules: PAYE 2026/27 - SSC 0.9% + 0.9% (ceiling N$12,500/m) - Labour Act 2007 premiums - verified.', { color: MUTED });
+  page.text(right, 52, 7, `Payslip ID: ${payslip.id || ''}`, { align: 'right', color: MUTED });
+  page.text(right, 42, 7, 'Page 1 of 1', { align: 'right', color: MUTED });
 
   return buildPdf([page]);
 }

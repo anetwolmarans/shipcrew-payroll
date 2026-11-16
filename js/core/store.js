@@ -76,6 +76,13 @@ export async function ensureSeed() {
     await put(STORES.META, { id: 'seedVersion', value: 5 });
     return true;
   }
+  if (seedVersion < 6) {
+    // v2.3.1 upgrade: stamp signed-on dates + signed-contract references
+    // onto the DEMO contracts (merge only — user values are never touched).
+    await seedPhase6DemoData();
+    await put(STORES.META, { id: 'seedVersion', value: 6 });
+    return true;
+  }
   return false;
 }
 
@@ -302,7 +309,8 @@ async function seedFull() {
   await seedPhase2DemoData();
   await seedPhase4DemoData();
   await seedPhase5DemoData();
-  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.3.0' });
+  await seedPhase6DemoData();
+  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.3.1' });
 }
 
 /**
@@ -324,6 +332,8 @@ export async function seedPhase5DemoData() {
       rateCents: 2850,              // N$28.50/hour (above the N$18.00 minimum wage)
       effectiveFrom: '2026-01-01', effectiveTo: null,
       currency: 'NAD',
+      signedOn: '2025-12-18',
+      signedContractRef: 'HR/CONTRACTS/2026/027',
       notes: 'Demo contract — hourly deckhand rate with statutory premiums.',
       changeReason: 'Demo data — hourly deckhand contract',
       status: 'active', history: [],
@@ -338,6 +348,8 @@ export async function seedPhase5DemoData() {
       rateCents: 24500,             // N$245.00 per day at sea
       effectiveFrom: '2026-01-01', effectiveTo: null,
       currency: 'NAD',
+      signedOn: '2025-12-19',
+      signedContractRef: 'HR/CONTRACTS/2026/031',
       notes: 'Demo contract — daily rate per day at sea (fishers\u2019 regulations reg 4).',
       changeReason: 'Demo data — daily at-sea contract',
       status: 'active', history: [],
@@ -345,6 +357,27 @@ export async function seedPhase5DemoData() {
     }));
   }
   return true;
+}
+
+/**
+ * Upgrade seed (v2.3.1): stamp the signed-on date + signed-contract
+ * reference onto the DEMO contracts created by an earlier Phase 5 install.
+ * MERGE only — never overwrites a value the user already set, and never
+ * touches contracts that are not the demo records.
+ */
+export async function seedPhase6DemoData() {
+  const demoIds = ['contract-frans-001', 'contract-selma-001'];
+  const refs = { 'contract-frans-001': ['2025-12-18', 'HR/CONTRACTS/2026/027'], 'contract-selma-001': ['2025-12-19', 'HR/CONTRACTS/2026/031'] };
+  let changed = false;
+  for (const id of demoIds) {
+    const rec = await get(STORES.CONTRACTS, id);
+    if (!rec || !rec.isDemo) continue;
+    const [signedOn, ref] = refs[id];
+    if (!rec.signedOn) { rec.signedOn = signedOn; changed = true; }
+    if (!rec.signedContractRef) { rec.signedContractRef = ref; changed = true; }
+    if (changed) await put(STORES.CONTRACTS, rec);
+  }
+  return changed;
 }
 
 /**

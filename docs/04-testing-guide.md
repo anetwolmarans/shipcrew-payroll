@@ -246,9 +246,9 @@ Sign in as **System Administrator** (`admin@shipcrew.demo` / `Admin@2026`) or **
 
 | # | Do this | You should see |
 |---|---|---|
-| V1 | Admin → **Contracts** (new Payroll menu group) | Both crew members with their contracts: Frans "Hourly rate N$28.50/hour", Selma "Daily rate N$245.00/day at sea", implied rates N$28.50 and ≈N$30.63 per hour |
+| V1 | Admin → **Contracts** (new Payroll menu group) | Both crew members with their contracts: Frans "Hourly rate N$28.50/hour · signed HR/CONTRACTS/2026/027", Selma "Daily rate N$245.00/day at sea · signed HR/CONTRACTS/2026/031", implied rates N$28.50 and ≈N$30.63 per hour |
 | V2 | **New version** on Frans → try rate **15.00** | Blocked: "The hourly rate is below the national minimum wage (N$18.00/hour…)" — illegal rates are refused |
-| V3 | New version with rate **30.00**, effective tomorrow, reason "Annual increase" | Saved; the list shows the new rate; **View** shows BOTH versions with periods, reasons and status (active/superseded) |
+| V3 | New version with rate **30.00**, effective tomorrow, reason "Annual increase", signed-on date + reference (e.g. HR/CONTRACTS/2026/041) | Saved; the list shows the new rate and its signed reference; **View** shows BOTH versions with periods, signed references, reasons and status (active/superseded). (The signed PAPER contract stays in your HR file — the app records its pay terms + reference, so payslips point back to the signed original.) |
 | V4 | Statutory Rules screen | The payroll rules now show **verified & implemented** with real values: PAYE bands, SSC 0.9%/0.9% with the N$12,500 ceiling, Labour Act multipliers, N$18.00 minimum wage, fishers' regs |
 
 ## W. Building a payroll run
@@ -269,7 +269,7 @@ Sign in as **System Administrator** (`admin@shipcrew.demo` / `Admin@2026`) or **
 | X1 | **Approve & lock** with a note | Requires a note; on confirm: status **approved + locked**, and the payslip is issued |
 | X2 | Try **Build payroll** on TRP-2026-013 again | Blocked: "A payroll … already exists in status 'locked'. Locked payrolls are never recalculated — use an adjustment entry on a later run instead." |
 | X3 | Admin → **Payslips** | The issued payslip listed with trip, gross − deductions, net, **View** and **PDF** buttons |
-| X4 | Press **PDF** | A real PDF downloads (works offline): company header, employee details, worked-time summary, every line with amounts, NET PAY band, employer SSC separate |
+| X4 | Press **PDF** | A real PDF downloads (works offline), print-ready: navy company header, EMPLOYEE + PAY PERIOD cards (the employee card shows the **signed-contract reference**), worked-time boxes, EARNINGS + DEDUCTIONS tables with every line and its calculation, NET PAY band, employer SSC in its own box, footer with payslip ID |
 | X5 | Sign out → sign in as **Crew Member (Frans)** (`crew1@shipcrew.demo` / `Crew@2026`) | "My payslips" shows TRP-2026-013 with **Net N$287,067.06** and a PDF button — and nothing else; Selma sees none of Frans's payslips |
 | X6 | (As admin) Review → **Adjustment entry** on the locked trip | Records a visible correction (deduction or earning) with a mandatory reason — history is never rewritten |
 | X7 | Audit Log | New actions: `contract_created`, `payroll_drafted`, `payroll_approved`, `adjustment_added` — each with who, when, what |

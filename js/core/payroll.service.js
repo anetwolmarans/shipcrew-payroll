@@ -339,6 +339,10 @@ export async function createContract(fields) {
     effectiveFrom: fields.effectiveFrom,
     effectiveTo: null,
     currency: 'NAD',
+    // The signed PAPER contract stays in the HR file; these two fields link
+    // each pay version to that signed original (see docs/12-payroll.md §2).
+    signedOn: fields.signedOn || null,                  // date the crew member signed
+    signedContractRef: fields.signedContractRef || '',  // e.g. "HR/CONTRACTS/2026/041"
     notes: fields.notes || '',
     changeReason: fields.changeReason || 'Initial contract',
     status: 'active',
@@ -372,7 +376,7 @@ export async function updateContract(contractId, patch) {
   if (c.status === 'superseded') throw new Error('Superseded contract versions are read-only history.');
   if (!String(patch.changeReason || '').trim()) throw new Error('A reason is required for every contract change.');
   const who = sessionBrief();
-  const before = { rateCents: c.rateCents, notes: c.notes };
+  const before = { rateCents: c.rateCents, notes: c.notes, signedOn: c.signedOn, signedContractRef: c.signedContractRef };
   if (patch.rate !== undefined) {
     const rateCents = toCents(patch.rate);
     if (!Number.isFinite(rateCents) || rateCents <= 0) throw new Error('Enter a positive rate.');
@@ -383,6 +387,8 @@ export async function updateContract(contractId, patch) {
     c.rateCents = rateCents;
   }
   if (patch.notes !== undefined) c.notes = patch.notes;
+  if (patch.signedOn !== undefined) c.signedOn = patch.signedOn || null;
+  if (patch.signedContractRef !== undefined) c.signedContractRef = String(patch.signedContractRef || '').trim();
   c.history.push({ at: nowISO(), by: who.name, what: 'Edited', reason: patch.changeReason, before });
   c.updatedAt = nowISO(); c.updatedBy = who.name;
   return persistContract(c, AUDIT_ACTIONS.CONTRACT_UPDATED,
@@ -595,6 +601,8 @@ export function priceCrewTrip({ crew, contract, events, allowances, commissionCe
   return {
     crewId: crew.id, crewName: crew.fullName, position: crew.position || '',
     contractType: contract?.typeLabel || 'No contract',
+    signedContractRef: contract?.signedContractRef || '',
+    signedOn: contract?.signedOn || null,
     hourCategories: catTotals,
     shiftDays: [...shiftDays],
     lines,
@@ -738,6 +746,8 @@ export async function approveRun(runId, { note } = {}) {
       crewId: p.crewId, crewName: p.crewName, position: p.position,
       userId: crew?.userId || null,
       contractType: p.contractType,
+      signedContractRef: p.signedContractRef || '',
+      signedOn: p.signedOn || null,
       periodLabel: `Trip ${run.tripRef}`,
       payDate: localDateKey(nowISO()),
       lines: p.lines, hourCategories: p.hourCategories,

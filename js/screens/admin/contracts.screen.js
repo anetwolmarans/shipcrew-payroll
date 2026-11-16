@@ -32,7 +32,7 @@ export async function render(root, ctx) {
           <span class="badge badge-success">${esc(current.typeLabel)}</span>
           <div class="text-small" style="margin-top:4px"><b>${esc(fmtMoneyCents(current.rateCents))}</b>
             ${current.type === 'hourly' ? '/hour' : current.type === 'daily_sea' ? '/day at sea' : '/month'}</div>
-          <div class="text-xs text-muted">since ${esc(fmtDate(current.effectiveFrom))}</div>
+          <div class="text-xs text-muted">since ${esc(fmtDate(current.effectiveFrom))}${current.signedContractRef ? ` · signed ${esc(current.signedContractRef)}` : ''}</div>
         ` : '<span class="text-muted">No contract yet</span>'}
       </td>
       <td class="text-small">
@@ -70,6 +70,9 @@ export async function render(root, ctx) {
     openModal({
       title: `Contract — ${member.fullName}`, icon: 'file-text', wide: true,
       body: `
+        <p class="text-xs text-muted" style="margin:0 0 10px">${icon('info', 14)}
+          The signed <b>paper</b> contract stays in your HR file — this screen records its <b>pay terms</b> (what payroll calculates with).
+          Fill in the signed-on date and the file reference so every payslip can point back to the signed original.</p>
         <div class="form-grid">
           <label>Type
             <select id="c-type">${CONTRACT_TYPES.map(t => `<option value="${esc(t.key)}">${esc(t.label)}</option>`).join('')}</select>
@@ -83,20 +86,28 @@ export async function render(root, ctx) {
           <label>Reason for this version
             <input id="c-reason" type="text" placeholder="e.g. Annual increase / new crew member" />
           </label>
+          <label>Signed on (date)
+            <input id="c-signedon" type="date" />
+          </label>
+          <label>Signed contract reference
+            <input id="c-signedref" type="text" placeholder="e.g. HR/CONTRACTS/2026/041" />
+          </label>
         </div>
-        <p class="text-xs text-muted" id="c-hint" style="margin:10px 0 0">Hourly: paid per worked hour with statutory premiums. Daily: a fixed amount per day at sea (fishers' regulations reg 4). Fixed salary: monthly, premiums on top.</p>
-        <p class="text-xs" style="margin:8px 0 0" id="c-warn"></p>`,
+        <p class="text-xs text-muted" id="c-hint" style="margin:10px 0 0">Hourly: paid per worked hour with statutory premiums. Daily: a fixed amount per day at sea (fishers' regulations reg 4). Fixed salary: monthly, premiums on top.</p>`,
       actions: [
         { label: 'Cancel', kind: 'btn-outline' },
         {
-          label: 'Save contract', kind: 'btn-primary', onClick: async () => {
+          label: 'Save contract', kind: 'btn-primary', onClick: async (overlay) => {
             try {
+              const v = (sel) => overlay.querySelector(sel)?.value || '';
               await createContract({
                 crewId,
-                type: content.querySelector('#c-type').value,
-                rate: content.querySelector('#c-rate').value,
-                effectiveFrom: content.querySelector('#c-from').value,
-                changeReason: content.querySelector('#c-reason').value
+                type: v('#c-type'),
+                rate: v('#c-rate'),
+                effectiveFrom: v('#c-from'),
+                changeReason: v('#c-reason'),
+                signedOn: v('#c-signedon') || null,
+                signedContractRef: v('#c-signedref')
               });
               toast('Contract saved. Older versions are kept as history.', 'success');
               render(root, ctx);
@@ -121,6 +132,7 @@ export async function render(root, ctx) {
           <td>${esc(fmtDate(k.effectiveFrom))} → ${k.effectiveTo ? esc(fmtDate(k.effectiveTo)) : 'now'}</td>
           <td>${esc(k.typeLabel)}</td>
           <td class="cell-strong">${esc(fmtMoneyCents(k.rateCents))}</td>
+          <td class="text-small">${esc(k.signedContractRef || '—')}${k.signedOn ? `<div class="text-xs text-muted">signed ${esc(fmtDate(k.signedOn))}</div>` : ''}</td>
           <td class="text-small">${esc(k.changeReason || '')}</td>
           <td>${k.status === 'active' ? '<span class="badge badge-success">active</span>' : '<span class="badge badge-neutral">superseded</span>'}</td>
         </tr>`).join('');
@@ -128,11 +140,11 @@ export async function render(root, ctx) {
         title: `Contract history — ${c.crewName}`, icon: 'book', wide: true,
         body: `
           <div class="table-wrap"><table class="table">
-            <thead><tr><th>Period</th><th>Type</th><th>Rate</th><th>Reason</th><th>Status</th></tr></thead>
+            <thead><tr><th>Period</th><th>Type</th><th>Rate</th><th>Signed original</th><th>Reason</th><th>Status</th></tr></thead>
             <tbody>${historyHtml}</tbody>
           </table></div>
           ${c.notes ? `<p class="text-small" style="margin-top:10px">${esc(c.notes)}</p>` : ''}
-          <p class="text-xs text-muted" style="margin-top:8px">Contract versions are permanent records: they are never deleted, and payslips always name the version that priced them.</p>`,
+          <p class="text-xs text-muted" style="margin-top:8px">Contract versions are permanent records: they are never deleted, and payslips always name the version that priced them. The signed paper contract itself stays in your HR file — record its reference here so any payslip can point back to it.</p>`,
         actions: [{ label: 'Close', kind: 'btn-outline' }]
       });
     }));
