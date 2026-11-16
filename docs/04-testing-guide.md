@@ -234,4 +234,46 @@ Legend: ✅ = the test passes when you see the expected result.
 
 ## When every box ticks
 
-Congratulations — Phases 1, 2, 3 and 4 are verified. Tell your developer "Phase 4 approved" and Phase 5 (Payroll: contracts, commissions, allowances, PAYE + SSC from verified statutory rules, per-trip payroll, approval & locking, PDF payslips) begins.
+Congratulations — Phases 1, 2, 3 and 4 are verified. Phase 5 (Payroll) is now also built — run sections V–X below, then say "Phase 5 approved".
+
+---
+
+# Phase 5 — Payroll (sections V–X)
+
+Sign in as **System Administrator** (`admin@shipcrew.demo` / `Admin@2026`) or **Payroll Administrator** (`payroll@shipcrew.demo` / `Payroll@2026`) in DEMO mode (`?env=demo`). The demo data now includes contracts: Frans hourly at N$28.50/h, Selma daily-at-sea at N$245.00/day, both since 1 Jan 2026.
+
+## V. Contracts
+
+| # | Do this | You should see |
+|---|---|---|
+| V1 | Admin → **Contracts** (new Payroll menu group) | Both crew members with their contracts: Frans "Hourly rate N$28.50/hour", Selma "Daily rate N$245.00/day at sea", implied rates N$28.50 and ≈N$30.63 per hour |
+| V2 | **New version** on Frans → try rate **15.00** | Blocked: "The hourly rate is below the national minimum wage (N$18.00/hour…)" — illegal rates are refused |
+| V3 | New version with rate **30.00**, effective tomorrow, reason "Annual increase" | Saved; the list shows the new rate; **View** shows BOTH versions with periods, reasons and status (active/superseded) |
+| V4 | Statutory Rules screen | The payroll rules now show **verified & implemented** with real values: PAYE bands, SSC 0.9%/0.9% with the N$12,500 ceiling, Labour Act multipliers, N$18.00 minimum wage, fishers' regs |
+
+## W. Building a payroll run
+
+| # | Do this | You should see |
+|---|---|---|
+| W1 | Admin → **Payroll Processing** | "Payroll runs" (empty) and "Trips ready for payroll" listing **TRP-2026-013** (closed) |
+| W2 | **Build payroll** on TRP-2026-013, commission price **9.00** | After a moment: a draft run — 1 payslip (Frans), net ≈ **N$287,067.06**, gross ≈ N$436,552.74 |
+| W3 | **Review** the run | A line per crew member: hours chips (Ord/OT/Night), gross, deductions split into PAYE and SSC, net — plus totals incl. employer SSC |
+| W4 | Open the **Payslip** detail | Every earning and deduction on its own line **with its calculation** (e.g. "0h13 × N$28.50/h × 1.5"); Catch commission ≈ N$436,275.00 = 48,475 kg × N$9.00 |
+| W5 | Verify a number by hand | PAYE ≈ N$149,481.18: monthly taxable ≈ N$436,548.24 × 12 = N$5.24M/year → top band: 429,000 + 37% above 1.55M, ÷ 12 |
+| W6 | Rebuild the draft (same trip) | Allowed while draft — the draft is replaced, never duplicated |
+
+## X. Approval, locking, payslips and adjustments
+
+| # | Do this | You should see |
+|---|---|---|
+| X1 | **Approve & lock** with a note | Requires a note; on confirm: status **approved + locked**, and the payslip is issued |
+| X2 | Try **Build payroll** on TRP-2026-013 again | Blocked: "A payroll … already exists in status 'locked'. Locked payrolls are never recalculated — use an adjustment entry on a later run instead." |
+| X3 | Admin → **Payslips** | The issued payslip listed with trip, gross − deductions, net, **View** and **PDF** buttons |
+| X4 | Press **PDF** | A real PDF downloads (works offline): company header, employee details, worked-time summary, every line with amounts, NET PAY band, employer SSC separate |
+| X5 | Sign out → sign in as **Crew Member (Frans)** (`crew1@shipcrew.demo` / `Crew@2026`) | "My payslips" shows TRP-2026-013 with **Net N$287,067.06** and a PDF button — and nothing else; Selma sees none of Frans's payslips |
+| X6 | (As admin) Review → **Adjustment entry** on the locked trip | Records a visible correction (deduction or earning) with a mandatory reason — history is never rewritten |
+| X7 | Audit Log | New actions: `contract_created`, `payroll_drafted`, `payroll_approved`, `adjustment_added` — each with who, when, what |
+
+## When every box ticks (Phases 1–5)
+
+Congratulations — the payroll engine is verified: contracts price the trips, statutory deductions are computed from verified rules, approved payroll locks forever, and every crew member can see (and print) their own payslip. Tell your developer **"Phase 5 approved"** and Phase 6 (Reporting & Deployment: report library, dashboards, exports, production review) begins.

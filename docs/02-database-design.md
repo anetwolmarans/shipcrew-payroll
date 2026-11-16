@@ -28,7 +28,7 @@ All timestamps are stored in **UTC** and displayed in **Namibian time**.
 | `roles` | The six role definitions + their capability lists | id, label, description, capabilities | Reference data, read-only. |
 | `crew` | Employee records | employeeId, userId, identity/passport, contact, emergencyContact, position, employmentStatus, startDate, vesselId, tripId, remunerationType | Crew can read ONLY their own record. |
 | `crew_banking` | Bank account details (separate!) | employeeId, bank, branch, accountNumber | Extra-sensitive: readable only by payroll/system admins and the owner. Separate collection so it can never leak through a broad crew query. |
-| `contracts` | Employment contracts & pay arrangements | employeeId, type (hourly/fixed), rate or salary, payPeriod, effectiveFrom, effectiveTo, allowances, commissionRules | Effective-dated: changing a contract never rewrites history. Phase 5. |
+| `contracts` | Effective-dated contract versions (implemented Phase 5) | crewId, type (`hourly`/`daily_sea`/`fixed_salary`), rateCents, effectiveFrom/To, changeReason, history | Effective-dated: the contract in force on a shift's clock-in date prices that shift; versions are never deleted. |
 
 ### Operations
 
@@ -55,17 +55,22 @@ Corrections are new records pointing at the original (`correctionOf`), with reas
 | `catch_records` | Landings per trip | tripId, vesselId, date, species, weightKg, landingWeightKg, category, responsibleUserId, documents |
 | `quota_allocations` | Commission shares | tripId, employeeId, method (equal/percentage/fixedWeight/rank/contractual/custom), value, basisCatchId? |
 
-### Money
+### Money (Phase 5 — as implemented)
 
 | Collection | Holds | Key fields |
 |---|---|---|
-| `remuneration_rules` | Per-employee pay components | employeeId, component (basic/overtime/night/sunday/holiday/commission/bonus/allowance/advance/deduction), amount or rate, effectiveFrom/To |
-| `statutory_rules` | THE locked legal rules | ruleKey, category, source, effectiveFrom/To, version, verifiedBy, verifiedDate, approvedBy, values, verificationStatus |
-| `payroll_periods` | Pay periods (statutory, e.g. monthly) | periodStart, periodEnd, status |
-| `payroll_calculations` | One per employee per trip/period | tripId, employeeId, all pay lines, gross, PAYE, SSC employee/employer, deductions, net |
-| `payroll_approvals` | Who approved what, when | payrollRunId, approvedBy, approvedAt, status |
-| `payslips` | Final payslips | payrollRunId, employeeId, userId, lines, amounts, status (`draft`→`approved`→`locked`), pdfRef |
-| `deductions` / `allowances` | Itemised extras | employeeId, type, amount, reason, authorisedBy |
+| `contracts` | Effective-dated contract versions (implemented Phase 5) | crewId, type (`hourly`/`daily_sea`/`fixed_salary`), rateCents, effectiveFrom/To, changeReason, history, status (`active`/`superseded`) |
+| `remuneration_rules` | Reserved | Superseded by effective-dated contracts |
+| `statutory_rules` | THE locked legal rules (values live in versioned app code; the register records sources) | ruleKey, category, source, effectiveFrom/To, version, verifiedBy, verifiedDate, approvedBy, values, verificationStatus |
+| `payroll_periods` | Reserved for monthly runs | periodStart, periodEnd, status |
+| `payroll_calculations` | One payroll RUN per trip (implemented Phase 5) | tripId, tripRef, status (`draft`→`locked`), commissionPricePerKg, payslips[] (per crew: lines with labels/details/amounts), totals (gross/deduction/net/employerSsc — integer cents), warnings, approvalHistory |
+| `payroll_approvals` | Approval history (append-only) | payrollRunId, approvedBy, approvedAt, status |
+| `payslips` | Issued payslips — immutable; crew read their own via userId | runId, tripId, crewId, userId, position, contractType, lines[], hourCategories, gross/deduction/net cents, employerSscCents, payDate, status `issued` |
+| `deductions` | ADJUSTMENT ENTRIES (visible corrections) | crewId, tripId, kind (`earning`/`deduction`), label, amountCents, reason (required), status `pending` |
+| `allowances` | Itemised allowances per crew + trip | crewId, tripId, type, typeLabel, amountCents, note |
+
+**Money rule:** every amount is an integer number of **cents** (N$ × 100)
+everywhere — stores, sync, PDF — so rounding can never drift a cent.
 
 ### System & integrity
 

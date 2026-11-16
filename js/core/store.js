@@ -58,7 +58,7 @@ export async function ensureSeed() {
     // (Device PINs, revocation and sync states need no migration; existing
     // records keep their "saved locally" state and sync naturally.)
     const rec = (await get(STORES.META, 'seeded')) || {};
-    await put(STORES.META, { ...rec, id: 'seeded', appVersion: '2.2.0' });
+    await put(STORES.META, { ...rec, id: 'seeded', appVersion: '2.3.0' });
     await put(STORES.META, { id: 'seedVersion', value: 3 });
   }
   if (seedVersion < 4) {
@@ -67,6 +67,13 @@ export async function ensureSeed() {
     // Existing records are never touched.
     await seedPhase4DemoData();
     await put(STORES.META, { id: 'seedVersion', value: 4 });
+    return true;
+  }
+  if (seedVersion < 5) {
+    // Phase 5 upgrade: ADD demo contracts (effective-dated) so per-trip
+    // payroll can be built immediately. Existing records are never touched.
+    await seedPhase5DemoData();
+    await put(STORES.META, { id: 'seedVersion', value: 5 });
     return true;
   }
   return false;
@@ -183,7 +190,7 @@ async function seedBase() {
   }));
   await put(STORES.META, { id: 'localDeviceId', value: (await getAll(STORES.DEVICES))[0].id });
 
-  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.2.0' });
+  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.3.0' });
   return true;
 }
 
@@ -294,7 +301,50 @@ async function seedFull() {
   await seedBase();
   await seedPhase2DemoData();
   await seedPhase4DemoData();
-  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.2.0' });
+  await seedPhase5DemoData();
+  await put(STORES.META, { id: 'seeded', at: nowISO(), appVersion: '2.3.0' });
+}
+
+/**
+ * Phase 5 demo data: effective-dated contracts for the two demo crew
+ * members (hourly for Frans, daily-at-sea for Selma — so both contract
+ * types can be tried immediately). Only ADDS records; rates are clearly
+ * above the N$18.00 minimum wage. All clearly fictional.
+ */
+export async function seedPhase5DemoData() {
+  const frans = await getCrewById('NAF-0027');
+  const selma = await getCrewById('NAF-0031');
+  if (!frans && !selma) return false;
+
+  if (frans) {
+    await put(STORES.CONTRACTS, stamp({
+      id: 'contract-frans-001',
+      crewId: 'NAF-0027', crewName: 'Frans Nangolo', position: frans.position || 'Deckhand',
+      type: 'hourly', typeLabel: 'Hourly rate',
+      rateCents: 2850,              // N$28.50/hour (above the N$18.00 minimum wage)
+      effectiveFrom: '2026-01-01', effectiveTo: null,
+      currency: 'NAD',
+      notes: 'Demo contract — hourly deckhand rate with statutory premiums.',
+      changeReason: 'Demo data — hourly deckhand contract',
+      status: 'active', history: [],
+      isDemo: true, syncStatus: 'saved locally'
+    }));
+  }
+  if (selma) {
+    await put(STORES.CONTRACTS, stamp({
+      id: 'contract-selma-001',
+      crewId: 'NAF-0031', crewName: 'Selma Uugwanga', position: selma.position || 'Fish Processing Operator',
+      type: 'daily_sea', typeLabel: 'Daily rate (per day at sea)',
+      rateCents: 24500,             // N$245.00 per day at sea
+      effectiveFrom: '2026-01-01', effectiveTo: null,
+      currency: 'NAD',
+      notes: 'Demo contract — daily rate per day at sea (fishers\u2019 regulations reg 4).',
+      changeReason: 'Demo data — daily at-sea contract',
+      status: 'active', history: [],
+      isDemo: true, syncStatus: 'saved locally'
+    }));
+  }
+  return true;
 }
 
 /**

@@ -192,13 +192,20 @@ service cloud.firestore {
 
     // ---------------- contracts & remuneration ----------------
     match /contracts/{contractId} {
-      allow read: if signedIn() && (isSystemAdmin() || isPayrollAdmin() || isAuditor()
-        || (isCrew() && resource.data.userId == request.auth.uid));
-      allow write: if false;   // opens in Phase 5 (effective-dated, audited)
+      // Phase 5: effective-dated, audited contract versions — staff read,
+      // payroll/system admins write. Versions are never deleted. (Crew do
+      // not read contracts directly; their payslips name the rate.)
+      allow read: if signedIn() && (isSystemAdmin() || isPayrollAdmin() || isVesselManager() || isAuditor());
+      allow create, update: if (isSystemAdmin() || isPayrollAdmin())
+        && request.resource.data.crewId is string
+        && request.resource.data.rateCents is int
+        && request.resource.data.rateCents > 0
+        && request.resource.data.effectiveFrom is string;
+      allow delete: if false;   // history is sacred
     }
     match /remuneration_rules/{ruleId} {
       allow read: if signedIn() && (isSystemAdmin() || isPayrollAdmin() || isAuditor());
-      allow write: if false;   // opens in Phase 5
+      allow write: if false;   // superseded by effective-dated contracts (Phase 5)
     }
 
     // ---------------- STATUTORY RULES (locked) ----------------
@@ -210,31 +217,55 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ---------------- payroll ----------------
+    // ---------------- payroll (Phase 5) ----------------
     match /payroll_periods/{periodId} {
       allow read: if isStaff();
-      allow write: if false;   // opens in Phase 5
+      allow write: if false;   // periods are derived per trip — kept for future monthly runs
     }
     match /payroll_calculations/{calcId} {
+      // Payroll runs (draft → locked). Staff read; only payroll/system admins
+      // write. Once status == 'locked' the document can never change again.
       allow read: if isStaff();
-      allow write: if false;   // opens in Phase 5
+      allow create, update: if (isSystemAdmin() || isPayrollAdmin())
+        && request.resource.data.status in ['draft', 'approved', 'locked']
+        && request.resource.data.totals.grossCents is int
+        && request.resource.data.totals.netCents is int
+        && (!(resource.data.status == 'locked') || request.resource.data.status == 'locked')
+        && (resource.data.status != 'locked' || unchanged('payslips'));
+      allow delete: if false;
     }
     match /payroll_approvals/{approvalId} {
       allow read: if isStaff();
-      allow write: if false;   // opens in Phase 5
+      allow create: if isSystemAdmin() || isPayrollAdmin();   // approval history is append-only
+      allow update, delete: if false;
     }
     match /payslips/{payslipId} {
+      // Issued payslips: crew read ONLY their own (the payslip is stamped
+      // with the crew member's userId when the run is approved).
       allow read: if signedIn() && (isPayrollAdmin() || isSystemAdmin() || isAuditor() || isVesselManager()
         || (isCrew() && resource.data.userId == request.auth.uid));
-      allow write: if false;   // opens in Phase 5 — approved payroll is never editable
+      // Payslips are CREATED only by approving a run, and NEVER change.
+      allow create: if (isSystemAdmin() || isPayrollAdmin())
+        && request.resource.data.status == 'issued'
+        && request.resource.data.netCents is int;
+      allow update, delete: if false;   // locked payroll is never editable
     }
     match /deductions/{recordId} {
+      // Phase 5: adjustment entries — visible corrections with reasons.
       allow read: if isPayrollAdmin() || isSystemAdmin() || isAuditor();
-      allow write: if false;   // opens in Phase 5
+      allow create: if (isSystemAdmin() || isPayrollAdmin())
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 2;
+      allow update: if (isSystemAdmin() || isPayrollAdmin()) && unchanged('reason') && unchanged('amountCents');
+      allow delete: if false;   // adjustments are history — reverse, never delete
     }
     match /allowances/{recordId} {
       allow read: if isPayrollAdmin() || isSystemAdmin() || isAuditor();
-      allow write: if false;   // opens in Phase 5
+      allow create: if (isSystemAdmin() || isPayrollAdmin())
+        && request.resource.data.amountCents is int
+        && request.resource.data.amountCents > 0;
+      allow update: if false;   // change an allowance by adding a correcting entry
+      allow delete: if false;
     }
 
     // ---------------- audit log (append-only) ----------------

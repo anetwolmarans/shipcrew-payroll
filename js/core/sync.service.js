@@ -55,7 +55,14 @@ const COLLECTION_TO_STORE = {
      their own collections. */
   break_records: STORES.BREAK_RECORDS,
   catch_records: STORES.CATCH_RECORDS,
-  quota_allocations: STORES.QUOTA_ALLOCATIONS
+  quota_allocations: STORES.QUOTA_ALLOCATIONS,
+  /* Phase 5: payroll — contracts, allowances, adjustment entries, runs and
+     issued payslips (all duplicate-proof by document ID). */
+  contracts: STORES.CONTRACTS,
+  allowances: STORES.ALLOWANCES,
+  deductions: STORES.DEDUCTIONS,
+  payroll_calculations: STORES.PAYROLL_CALCULATIONS,
+  payslips: STORES.PAYSLIPS
 };
 
 let _online = (typeof navigator !== 'undefined') ? navigator.onLine : true;

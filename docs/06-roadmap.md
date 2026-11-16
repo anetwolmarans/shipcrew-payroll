@@ -1,6 +1,6 @@
 # Guide 6 — The Roadmap
 
-The system is delivered in six tested phases. Nothing is skipped; every phase is verified before the next starts. This build = **Phases 1, 2, 3 and 4 complete**.
+The system is delivered in six tested phases. Nothing is skipped; every phase is verified before the next starts. This build = **Phases 1, 2, 3, 4 and 5 complete**.
 
 | Phase | What it delivers | Status |
 |---|---|---|
@@ -8,7 +8,7 @@ The system is delivered in six tested phases. Nothing is skipped; every phase is
 | **2. Crew & Operations** | Crew register (full employee records, secured banking), vessel register, trip register with the 8 statuses and permanent status history, crew assignments with preserved history, **crew clock-in/clock-out** with trip validation and duplicate prevention, attendance view, in-app user management | ✅ **Complete** |
 | **3. Offline & Synchronisation** | Offline device activation with device-bound PIN, full device registry with administrator revocation, automatic duplicate-proof sync, per-record sync states, conflict handling | ✅ **Complete** |
 | **4. Working Hours & Catch** | Automatic hour categories (ordinary, overtime, night, Sunday, public holiday), breaks & rest, midnight-crossing shifts, supervisor corrections with full history, catch register, six quota allocation methods | ✅ **Complete** |
-| **5. Payroll** | Contracts (hourly / fixed salary) effective-dated and audited, commissions, allowances, PAYE + SSC **from verified statutory rules only**, per-trip payroll with statutory periods, approval & locking, PDF payslips, adjustment entries | Planned |
+| **5. Payroll** | Contracts (hourly / fixed salary / daily at sea) effective-dated and audited, commissions, allowances, PAYE + SSC **from verified statutory rules only**, per-trip payroll with statutory periods, approval & locking, PDF payslips, adjustment entries | ✅ **Complete** |
 | **6. Reporting & Deployment** | Full report library with PDF/Excel/CSV exports, management dashboards, optional Android packaging (Capacitor), production security review | Planned |
 
 ## How each phase is accepted
@@ -28,10 +28,21 @@ Every phase ends with a test guide (like `docs/04-testing-guide.md`) mapped to t
 
 Full plain-English walkthrough: `docs/11-working-hours-catch.md`. Test checklist: `docs/04-testing-guide.md` sections **S–U**.
 
+## What Phase 5 delivered (live now)
+
+1. **Contracts price the trips** — hourly, daily-per-day-at-sea and fixed-salary contracts, effective-dated (the contract in force on a shift's clock-in date prices that shift), every version kept forever with who/when/why. An hourly rate below the **N$18.00 national minimum wage is refused on entry**.
+2. **Statutory rules verified and implemented** — PAYE (2026/27 tables, annualise ÷ 12 method), SSC (0.9% + 0.9%, N$500–N$12,500 insurable, ceiling rise of 1 Sep 2026 honoured), overtime ×1.5, Sunday ×2, public holiday ×2, night-work allowance +6% on the statutory 20:00–07:00 window. Every rule cites its official source in the Statutory Rules screen — nothing was guessed.
+3. **Per-trip payroll runs**: build a draft (hours × contracts + allowances + catch-share commission at a price you enter − PAYE − SSC), review every line, then **approve & lock**. A locked run never changes — the engine refuses a rebuild with a clear message.
+4. **Payslips**: one per crew member per trip (duplicate-proof), visible to each crew member on their own phone — only their own, enforced again by the Firestore rules. PDFs are generated **on the device, offline**, with every earning and deduction on its own line and the employer SSC shown separately.
+5. **Adjustment entries**: the only way to correct payroll after locking — visible entries with mandatory reasons, settled on the next run. History is never rewritten.
+6. All money is computed and stored in **integer cents**; totals can never drift by rounding. The automated suite (`scripts/test-payroll-engine.mjs`, 47 checks) verifies every statutory calculation against hand-computed expectations.
+
+Full plain-English walkthrough: `docs/12-payroll.md`. Test checklist: `docs/04-testing-guide.md` sections **V–X**.
+
 ## Contact points for decisions you will be asked for
 
 - **Phase 2 (done):** trip reference format was set to `TRP-YYYY-NNN` (e.g. TRP-2026-016) — tell us if you want vessel codes in it.
 - **Phase 3 (done):** PIN length is 4–8 digits, set per device in the Devices screen; revocation signs a device out at its next check. Tell us if you want mandatory PINs on all crew devices (currently optional per device).
 - **Phase 4 (done):** break rules default to MANUAL (crew press Start break) with automatic deduction available in Settings; ordinary daily allowance defaults to 9 h and night window to 22:00–05:00 — both are Settings choices, so you can tune them to your vessels' agreements without a code change.
-- **Phase 5:** payslip layout, commission schemes per position, which allowances you use.
-- **Phase 6:** report formats you want first; whether an Android package (Capacitor) is needed or the installed PWA is enough.
+- **Phase 5 (done):** the commission input is a price per kg entered per run (share kg × price); commission schemes per position and your allowance types can be added as contract/policy choices in Phase 6 reporting. Tell us your real commission practice and we will encode it.
+- **Phase 6:** report formats you want first; whether an Android package (Capacitor) is needed or the installed PWA is enough (a signed APK already exists — see `docs/08-android-apk.md`).

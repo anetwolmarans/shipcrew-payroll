@@ -65,7 +65,15 @@ export const AUDIT_ACTIONS = {
   HOURS_RECLASSIFIED: 'hours_reclassified',
   CATCH_RECORDED: 'catch_recorded',
   CATCH_AMENDED: 'catch_amended',
-  QUOTA_ALLOCATED: 'quota_allocated'
+  QUOTA_ALLOCATED: 'quota_allocated',
+  /* ---- Phase 5: Payroll ---- */
+  CONTRACT_CREATED: 'contract_created',
+  CONTRACT_UPDATED: 'contract_updated',
+  ALLOWANCE_ADDED: 'allowance_added',
+  PAYROLL_DRAFTED: 'payroll_drafted',
+  PAYROLL_APPROVED: 'payroll_approved',
+  ADJUSTMENT_ADDED: 'adjustment_added',
+  PAYSLIP_VIEWED: 'payslip_viewed'
 };
 
 export async function logAction(action, details = '') {

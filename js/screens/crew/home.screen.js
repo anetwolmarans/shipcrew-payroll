@@ -22,6 +22,11 @@ import { fmtDate, fmtDateTime, fmtTime, minutesToHHMM, tzOffsetLabel, todayKey }
 import { isFirebaseConfigured } from '../../firebase-config.js';
 import { APP, tripStatus, HOUR_CATEGORIES } from '../../config.js';
 import { go } from '../../core/router.js';
+import * as payroll from '../../core/payroll.service.js';
+import { downloadPayslipPdf } from '../../core/payslip-pdf.js';
+import { getCompany } from '../../core/store.js';
+import { fmtNAD } from '../../core/ui.js';
+import { centsToNAD } from '../../core/payroll.service.js';
 
 export async function render(root, ctx) {
   const session = currentSession();
@@ -39,6 +44,7 @@ export async function render(root, ctx) {
     const workedToday = crew ? await ops.minutesWorkedOn(session.userId, todayKey()) : 0;
     const recent = crew ? await ops.myClockEvents(session.userId, 5) : [];
     const todayCats = crew ? await hours.dayCategoriesFor(crew.id, todayKey()) : null;
+    const mySlips = await payroll.myPayslips(session.userId);
 
     const statusDef = trip ? tripStatus(trip.status) : null;
 
@@ -168,11 +174,26 @@ export async function render(root, ctx) {
 
       <section class="card" aria-label="My payslips">
         <div class="card-title">${icon('file-text', 18)} My payslips</div>
+        ${mySlips.length ? `
+        <div class="payslip-list">
+          ${mySlips.map((s) => `
+          <div class="clocking-item">
+            <div class="ci-main">
+              <span class="ci-date">${esc(s.tripRef)} · ${esc(fmtDate(s.createdAt))}</span>
+              <span class="ci-times">Gross ${esc(fmtNAD(centsToNAD(s.grossCents)))} − ${esc(fmtNAD(centsToNAD(s.deductionCents)))}</span>
+            </div>
+            <div class="ci-side">
+              <span class="badge badge-success">Net ${esc(fmtNAD(centsToNAD(s.netCents)))}</span>
+              <button class="btn btn-outline btn-sm" data-mypdf="${esc(s.id)}">${icon('download', 14)} PDF</button>
+            </div>
+          </div>`).join('')}
+        </div>
+        <p class="text-xs text-muted" style="margin:.8rem 0 0">Only you and the payroll team can see these. Every line of each payslip is also downloadable as a PDF for printing.</p>` : `
         <div class="empty-state">
           ${icon('file-text', 30)}
           <div class="title">No payslips yet</div>
-          <p>Payslips appear here after payroll is approved (Phase 5). Only you and the payroll team can see them.</p>
-        </div>
+          <p>Payslips appear here after payroll is approved. Only you and the payroll team can see them.</p>
+        </div>`}
       </section>
 
       <section class="card" aria-label="Synchronisation">
@@ -263,6 +284,16 @@ export async function render(root, ctx) {
         breakEndBtn.disabled = false;
       }
     });
+
+    /* My payslip PDFs */
+    root.querySelectorAll('[data-mypdf]').forEach(btn =>
+      btn.addEventListener('click', async () => {
+        const slip = mySlips.find(s => s.id === btn.getAttribute('data-mypdf'));
+        if (!slip) return;
+        const company = await getCompany();
+        downloadPayslipPdf(slip, company, { appVersion: APP.version, generatedAt: new Date().toISOString() });
+        toast('Payslip PDF downloaded.', 'success');
+      }));
 
     root.querySelector('#crew-logout').addEventListener('click', async () => {
       await logout();

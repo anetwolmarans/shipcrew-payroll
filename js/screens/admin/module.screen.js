@@ -1,34 +1,14 @@
 /**
  * module.screen.js — The information screen for modules that arrive in
- * later phases (Crew, Vessels, Trips, Attendance, Catch, Payroll, Payslips,
- * Reports). Clicking a future menu item shows what the module will do and
- * when it arrives — honest information instead of dead buttons.
+ * later phases (currently: Reports & Exports, Phase 6). Clicking a future
+ * menu item shows what the module will do and when it arrives — honest
+ * information instead of dead buttons. Payroll and Payslips graduated to
+ * real screens in Phase 5 (see contracts/payroll/payslips.screen.js).
  */
 import { renderAdminShell } from './layout.js';
 import { icon, esc } from '../../core/ui.js';
 
 const MODULES = {
-  payroll: {
-    title: 'Payroll Processing', phase: 'Phase 5', icon: 'coins',
-    summary: 'Per-trip payroll that respects statutory pay periods: approved attendance + contracts + catch → basic pay, overtime, night-work, Sunday/public-holiday, commissions, bonuses, deductions, PAYE and SSC → draft payslips → review → approval → locked.',
-    items: [
-      'Hourly-rate or fixed-salary contracts, effective-dated and audited',
-      'PAYE and SSC only from verified statutory rules (never invented)',
-      'Approved payroll is locked; corrections happen through visible adjustment entries',
-      'Duplicate payment prevention per trip and payroll period'
-    ],
-    tests: 'Acceptance tests 13, 14, 15'
-  },
-  payslips: {
-    title: 'Payslips', phase: 'Phase 5', icon: 'file-text',
-    summary: 'Professional PDF payslips per crew member: company details, employee and trip information, every earning and deduction shown separately (including employer SSC), and the payment date.',
-    items: [
-      'Every component on its own line, as required for payslips',
-      'Crew members can open ONLY their own payslips — enforced by server rules',
-      'PDF download for printing and sharing'
-    ],
-    tests: 'Acceptance test 16'
-  },
   reports: {
     title: 'Reports & Exports', phase: 'Phase 6', icon: 'download',
     summary: 'The full management report library — crew, vessels, trips, attendance, overtime, night work, rest periods, catch and quota, commissions, payroll summaries and costs per vessel and trip, deductions, tax, SSC and the audit report.',
