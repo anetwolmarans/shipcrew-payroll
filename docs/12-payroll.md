@@ -152,18 +152,55 @@ version — see `rules/firestore.rules`).
 | `deductions` | Adjustment entries (with reasons) — pending settlement |
 | `payroll_calculations` | The runs: draft → locked, with every payslip line |
 | `payslips` | Issued payslips (immutable; crew read their own) |
+| `payslip_queries` | Crew questions/disputes about payslips + the answers (never deleted) |
 
 All amounts are stored in **integer cents** (N$ amounts × 100) so rounding
 can never drift a cent between screens, totals and the PDF.
 
-## 7. Acceptance tests
+## 7. Payslip history on the crew's phone (v2.4.0)
+
+Payslips **stay on the crew member's phone forever** — they are records,
+not messages. Two things make this true in the live environment:
+
+- **Pull sync.** A payslip is approved on the payroll admin's device; until
+  v2.4.0 the sync engine only UPLOADED records, so the crew member's phone
+  never received it. The engine now also DOWNLOADS the collections that
+  are born on other devices (`payslips`, `payslip_queries`) — after every
+  upload cycle and every 2 minutes while online. Firestore security rules
+  decide what each device may read: a crew member can only ever be sent
+  their own payslips and their own queries.
+- **Duplicate-proof by design.** Every record's ID becomes the Firestore
+  document ID, so re-downloading can never create a duplicate; the screen
+  repaints the moment new records arrive (`sync:pulled` event).
+
+## 7b. Payslip queries — disputing an error (v2.4.0)
+
+If a crew member thinks a payslip is wrong, they open it on their phone
+(**My payslips → View → Query this payslip**) and send a question, dispute
+or missing-pay report. The payroll team answers from the **Payslip
+Queries** screen; the answer appears on the crew member's phone under
+**My queries**.
+
+The rules that keep this honest:
+
+- **One open query per payslip** — raise, wait for the answer, raise a
+  follow-up if needed.
+- **Queries are never deleted** and the crew member's message can never be
+  edited — not in the app, not in the Firestore rules.
+- **An answer is a commitment**: once sent, it is immutable.
+- **A locked payslip is never rewritten.** If a query reveals a real
+  error, the correction is an **Adjustment entry** on the next payroll run
+  (visible, reasoned, auditable) — the original payslip stands as history.
+- Every raise, answer and close is written to the **audit log**.
+
+## 8. Acceptance tests
 
 Run the click-by-click checklist in `docs/04-testing-guide.md`, **sections
 V–X (Payroll)**. The automated suites cover the arithmetic:
 `node scripts/test-payroll-engine.mjs` (47 checks) and
 `node scripts/test-hours-engine.mjs` (48 checks) — both must be green.
 
-## 8. Coming in Phase 6
+## 9. Coming in Phase 6
 
 The report library (payroll summaries, cost per vessel/trip, tax and SSC
 reports, exports) and production deployment review. Payroll data is already

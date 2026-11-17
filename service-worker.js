@@ -11,7 +11,7 @@
  * AND CACHE_NAME below. Browsers then fetch fresh files and the app offers
  * an "Update & reload" prompt.
  */
-const CACHE_NAME = 'shipcrew-v2.3.1-payroll1';
+const CACHE_NAME = 'shipcrew-v2.4.0-queries1';
 
 /* Every file the app needs to start and run (the "app shell"). */
 const PRECACHE = [
@@ -41,6 +41,7 @@ const PRECACHE = [
   './js/core/catch.service.js',
   './js/core/payroll.service.js',
   './js/core/payslip-pdf.js',
+  './js/core/queries.service.js',
   './js/screens/login.screen.js',
   './js/screens/lock.screen.js',
   './js/screens/crew/home.screen.js',
@@ -54,6 +55,7 @@ const PRECACHE = [
   './js/screens/admin/contracts.screen.js',
   './js/screens/admin/payroll.screen.js',
   './js/screens/admin/payslips.screen.js',
+  './js/screens/admin/queries.screen.js',
   './js/screens/admin/users.screen.js',
   './js/screens/admin/devices.screen.js',
   './js/screens/admin/audit.screen.js',

@@ -7,7 +7,7 @@
  */
 
 const DB_NAME = 'shipcrew_payroll';
-const DB_VERSION = 2;   // v2: adds crew_banking store + clock/assignment indexes (Phase 2)
+const DB_VERSION = 3;   // v2: crew_banking + indexes; v3: payslip_queries store (payslip disputes)
 
 /** Every "table" (object store) in the local database. Created once at first run. */
 export const STORES = {
@@ -33,6 +33,7 @@ export const STORES = {
   PAYROLL_CALCULATIONS: 'payroll_calculations',
   PAYROLL_APPROVALS: 'payroll_approvals',
   PAYSLIPS: 'payslips',
+  PAYSLIP_QUERIES: 'payslip_queries',   // v2.4.0 — crew questions/disputes about payslips
   DEDUCTIONS: 'deductions',
   ALLOWANCES: 'allowances',
   AUDIT_LOGS: 'audit_logs',

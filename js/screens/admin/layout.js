@@ -34,6 +34,7 @@ export const NAV = [
       { key: 'contracts', label: 'Contracts', hash: '#/admin/contracts', icon: 'file-text', caps: [CAPABILITIES.MANAGE_CONTRACTS, CAPABILITIES.VIEW_PAYROLL_ALL] },
       { key: 'payroll', label: 'Payroll Processing', hash: '#/admin/payroll', icon: 'coins', caps: [CAPABILITIES.PROCESS_PAYROLL, CAPABILITIES.VIEW_PAYROLL_ALL] },
       { key: 'payslips', label: 'Payslips', hash: '#/admin/payslips', icon: 'download', caps: [CAPABILITIES.VIEW_PAYROLL_ALL, CAPABILITIES.VIEW_OWN_PAYSLIPS] },
+      { key: 'queries', label: 'Payslip Queries', hash: '#/admin/queries', icon: 'help', caps: [CAPABILITIES.VIEW_PAYROLL_ALL, CAPABILITIES.PROCESS_PAYROLL] },
       { key: 'reports', label: 'Reports & Exports', hash: '#/admin/module/reports', icon: 'download', phase: 'P6' }
     ]
   },

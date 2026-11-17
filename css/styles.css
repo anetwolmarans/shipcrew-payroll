@@ -250,6 +250,25 @@ table.table { width: 100%; border-collapse: collapse; font-size: .9rem; min-widt
 .table-toolbar .input { max-width: 240px; }
 .table-toolbar .input.select { max-width: 200px; }
 
+/* Compact table variant — fits more columns on narrow laptops (Users etc.) */
+.table.table-compact { min-width: 480px; }
+.table-compact th { padding: 8px 10px; font-size: .68rem; }
+.table-compact td { padding: 7px 10px; font-size: .84rem; }
+.table-compact .badge { font-size: .68rem; }
+.table-compact .btn-sm { padding: 4px 8px; font-size: .74rem; }
+
+/* User cards — the narrow-screen alternative to the Users table.
+   Below 900px the 7-column table cannot fit, so it is replaced by cards. */
+.user-card {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); box-shadow: var(--shadow-1); padding: .8rem .9rem;
+}
+.user-cards { display: none; }
+@media (max-width: 899px) {
+  .user-cards { display: grid; grid-template-columns: 1fr; gap: .7rem; }
+  #users-table .table-wrap { display: none; }
+}
+
 /* ---------- 9. App shell (admin layout) ---------- */
 .app-shell { min-height: 100vh; display: flex; }
 
@@ -324,7 +343,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: .9rem; min-widt
 
 @media (min-width: 1024px) {
   .sidebar { display: flex; position: sticky; top: 0; height: 100vh; }
-  .main-col { margin-left: var(--sidebar-w); }
+  /* No margin-left here: the sidebar is IN FLOW (flex child of .app-shell),
+     so it already pushes the main column right. The old margin-left
+     double-counted it and left a dead 268px gap on every desktop screen. */
   .scrim { display: none !important; }
   .hide-mobile { display: initial; }
   .content { padding: 1.6rem 28px 3rem; }

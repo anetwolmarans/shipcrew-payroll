@@ -73,7 +73,11 @@ export const AUDIT_ACTIONS = {
   PAYROLL_DRAFTED: 'payroll_drafted',
   PAYROLL_APPROVED: 'payroll_approved',
   ADJUSTMENT_ADDED: 'adjustment_added',
-  PAYSLIP_VIEWED: 'payslip_viewed'
+  PAYSLIP_VIEWED: 'payslip_viewed',
+  /* ---- v2.4.0: payslip queries (disputes/questions) ---- */
+  PAYSLIP_QUERY_RAISED: 'payslip_query_raised',
+  PAYSLIP_QUERY_ANSWERED: 'payslip_query_answered',
+  PAYSLIP_QUERY_CLOSED: 'payslip_query_closed'
 };
 
 export async function logAction(action, details = '') {

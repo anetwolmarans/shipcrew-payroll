@@ -62,8 +62,68 @@ const COLLECTION_TO_STORE = {
   allowances: STORES.ALLOWANCES,
   deductions: STORES.DEDUCTIONS,
   payroll_calculations: STORES.PAYROLL_CALCULATIONS,
-  payslips: STORES.PAYSLIPS
+  payslips: STORES.PAYSLIPS,
+  /* v2.4.0 — payslip queries (crew disputes/questions) sync both ways. */
+  payslip_queries: STORES.PAYSLIP_QUERIES
 };
+
+/**
+ * PULL SYNC (v2.4.0) — the missing half of synchronisation.
+ *
+ * Until now the engine only UPLOADED this device's records. But a payslip
+ * is approved on the PAYROLL ADMIN's device — the crew member's phone
+ * never received it, so "My payslips" stayed empty in live mode. This
+ * routine downloads the two collections that are born on OTHER devices:
+ *
+ *   payslips        — issued on the admin's device, read on the crew's
+ *   payslip_queries — raised on the crew's device, answered on the admin's
+ *
+ * It runs after every drain and every PULL_INTERVAL_MS while online. Each
+ * document is compared with the local copy; NEWER server copies are
+ * adopted (last-edit-wins, same rule as uploads — a response just written
+ * on this device is never overwritten by a stale server copy). Firestore
+ * security rules decide WHAT each device may read: crew members can only
+ * ever be sent their own payslips and their own queries.
+ */
+const PULL_INTERVAL_MS = 120000;   // every 2 minutes while online
+const PULL_COLLECTIONS = ['payslips', 'payslip_queries'];
+let _lastPullAt = 0;
+let _pulling = false;
+
+async function pullCollections() {
+  if (!isFirebaseConfigured() || !_online || _pulling) return { pulled: 0 };
+  _pulling = true;
+  try {
+    const fb = await fbEnsure();
+    let pulled = 0;
+    for (const coll of PULL_COLLECTIONS) {
+      let docs = [];
+      try {
+        const snap = await fb.fs.getDocs(fb.fs.collection(fb.db, coll));
+        docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch {
+        continue;   // rules deny or network hiccup — try again next cycle
+      }
+      for (const remote of docs) {
+        if (!remote?.id) continue;
+        const storeName = COLLECTION_TO_STORE[coll];
+        const local = await get(storeName, remote.id);
+        // Adopt only if the server copy is strictly NEWER. (Equal timestamps
+        // are already on this device — usually this device uploaded them.)
+        if (local && String(local.updatedAt || local.createdAt || '') >= String(remote.updatedAt || remote.createdAt || '')) continue;
+        await put(storeName, { ...remote, syncStatus: SYNC_STATUS.SYNCED });
+        pulled++;
+      }
+    }
+    if (pulled > 0) {
+      _lastPullAt = Date.now();
+      emit('sync:pulled', { pulled });   // open screens repaint themselves
+    }
+    return { pulled };
+  } finally {
+    _pulling = false;
+  }
+}
 
 let _online = (typeof navigator !== 'undefined') ? navigator.onLine : true;
 let _draining = false;
@@ -75,7 +135,9 @@ export function initSync() {
     if (document.visibilityState === 'visible') tryDrain();   // app brought back to the foreground
   });
   setInterval(() => tryDrain(), RETRY_INTERVAL_MS);
+  setInterval(() => { pullCollections().catch(() => {}); }, PULL_INTERVAL_MS);   // download payslips & queries
   tryDrain();   // drain right away when the app opens (Phase 3: fully automatic)
+  pullCollections().catch(() => {});   // and pull right away too
   return state();
 }
 
@@ -156,6 +218,8 @@ async function tryDrain() {
   try {
     await syncNow({ silent: true });
   } catch { /* queue is kept; retried on the next timer tick */ }
+  // Uploads done — now bring payslips & queries from other devices here.
+  pullCollections().catch(() => {});
 }
 
 async function localDeviceRecord() {

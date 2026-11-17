@@ -27,6 +27,7 @@ import * as catchScreen from '../screens/admin/catch.screen.js';
 import * as payrollScreen from '../screens/admin/payroll.screen.js';
 import * as contractsScreen from '../screens/admin/contracts.screen.js';
 import * as payslipsScreen from '../screens/admin/payslips.screen.js';
+import * as queriesScreen from '../screens/admin/queries.screen.js';
 
 export const ADMIN_ROLES = ['system_admin', 'payroll_admin', 'vessel_manager', 'supervisor', 'auditor'];
 
@@ -43,6 +44,7 @@ const ROUTES = [
   { path: '#/admin/contracts', screen: contractsScreen, roles: ADMIN_ROLES, title: 'Contracts' },
   { path: '#/admin/payroll', screen: payrollScreen, roles: ADMIN_ROLES, title: 'Payroll Processing' },
   { path: '#/admin/payslips', screen: payslipsScreen, roles: ADMIN_ROLES, title: 'Payslips' },
+  { path: '#/admin/queries', screen: queriesScreen, roles: ADMIN_ROLES, title: 'Payslip Queries' },
   { path: '#/admin/users', screen: usersScreen, roles: ADMIN_ROLES, title: 'Users & Roles' },
   { path: '#/admin/devices', screen: devicesScreen, roles: ADMIN_ROLES, title: 'Devices' },
   { path: '#/admin/audit', screen: auditScreen, roles: ADMIN_ROLES, title: 'Audit Log' },

@@ -270,9 +270,22 @@ Sign in as **System Administrator** (`admin@shipcrew.demo` / `Admin@2026`) or **
 | X2 | Try **Build payroll** on TRP-2026-013 again | Blocked: "A payroll … already exists in status 'locked'. Locked payrolls are never recalculated — use an adjustment entry on a later run instead." |
 | X3 | Admin → **Payslips** | The issued payslip listed with trip, gross − deductions, net, **View** and **PDF** buttons |
 | X4 | Press **PDF** | A real PDF downloads (works offline), print-ready: navy company header, EMPLOYEE + PAY PERIOD cards (the employee card shows the **signed-contract reference**), worked-time boxes, EARNINGS + DEDUCTIONS tables with every line and its calculation, NET PAY band, employer SSC in its own box, footer with payslip ID |
-| X5 | Sign out → sign in as **Crew Member (Frans)** (`crew1@shipcrew.demo` / `Crew@2026`) | "My payslips" shows TRP-2026-013 with **Net N$287,067.06** and a PDF button — and nothing else; Selma sees none of Frans's payslips |
+| X5 | Sign out → sign in as **Crew Member (Frans)** (`crew1@shipcrew.demo` / `Crew@2026`) | "My payslips" shows TRP-2026-013 with **Net N$287,067.06** and **View / PDF / Query** buttons — and nothing else; Selma sees none of Frans's payslips |
 | X6 | (As admin) Review → **Adjustment entry** on the locked trip | Records a visible correction (deduction or earning) with a mandatory reason — history is never rewritten |
 | X7 | Audit Log | New actions: `contract_created`, `payroll_drafted`, `payroll_approved`, `adjustment_added` — each with who, when, what |
+
+## Y. Payslip queries — the dispute loop (v2.4.0)
+
+| # | Do this | You should see |
+|---|---|---|
+| Y1 | As Frans: **My payslips → View** | Every payslip line with its calculation; a **Query this payslip** button |
+| Y2 | Press **Query this payslip** → pick "Dispute" → type a message → **Send query** | Confirmation; under **My queries** the message with a "Waiting for an answer" badge; the payslip's Query button becomes a **Query open** badge (one open query per payslip) |
+| Y3 | Try to raise a second query on the same payslip | Not possible — the button is gone until the first query is answered |
+| Y4 | Sign in as admin → **Payslip Queries** (Payroll menu) | The query under **Open queries** with crew member, trip, net amount, category and message |
+| Y5 | **Answer** → write the answer → **Send answer** | Query moves to "Answered & closed"; open count drops to zero |
+| Y6 | Sign back in as Frans | Under **My queries**: "Answer from …" with the admin's answer, marked **answered** |
+| Y7 | Audit Log | New actions: `payslip_query_raised`, `payslip_query_answered` (and `payslip_query_closed` if closed without an answer — a reason is required) |
+| Y8 | (Live mode) Admin approves payroll on one device; the crew member signs in on another | The payslip ARRIVES on the crew phone (pull sync) — "My payslips" fills in without a reload |
 
 ## When every box ticks (Phases 1–5)
 

@@ -259,6 +259,25 @@ service cloud.firestore {
       allow update: if (isSystemAdmin() || isPayrollAdmin()) && unchanged('reason') && unchanged('amountCents');
       allow delete: if false;   // adjustments are history — reverse, never delete
     }
+    match /payslip_queries/{queryId} {
+      // v2.4.0: payslip questions & disputes. Crew read ONLY their own
+      // (the query is stamped with the crew member's userId when raised).
+      allow read: if signedIn() && (isPayrollAdmin() || isSystemAdmin() || isAuditor()
+        || (isCrew() && resource.data.userId == request.auth.uid));
+      // A crew member opens a query against their OWN payslip only: the
+      // stamped userId must be theirs and the status must start 'open'.
+      allow create: if (isCrew() && request.resource.data.userId == request.auth.uid
+          && request.resource.data.status == 'open'
+          && request.resource.data.message is string
+          && request.resource.data.message.size() > 2)
+        || (isSystemAdmin() || isPayrollAdmin());
+      // Only payroll admins answer or close (open → answered/closed); the
+      // crew member's original message can never be edited by anyone.
+      allow update: if (isSystemAdmin() || isPayrollAdmin())
+        && unchanged('message') && unchanged('crewId') && unchanged('payslipId')
+        && (request.resource.data.status == 'answered' || request.resource.data.status == 'closed');
+      allow delete: if false;   // queries are history — never deleted
+    }
     match /allowances/{recordId} {
       allow read: if isPayrollAdmin() || isSystemAdmin() || isAuditor();
       allow create: if (isSystemAdmin() || isPayrollAdmin())

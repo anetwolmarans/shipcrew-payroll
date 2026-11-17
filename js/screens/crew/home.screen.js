@@ -16,7 +16,7 @@ import { currentSession, logout } from '../../core/auth.service.js';
 import * as store from '../../core/store.js';
 import * as ops from '../../core/operations.service.js';
 import * as hours from '../../core/hours.service.js';
-import { icon, esc, avatarInitials, toast, updateSyncChips } from '../../core/ui.js';
+import { icon, esc, avatarInitials, toast, updateSyncChips, openModal } from '../../core/ui.js';
 import { state as syncState } from '../../core/sync.service.js';
 import { fmtDate, fmtDateTime, fmtTime, minutesToHHMM, tzOffsetLabel, todayKey } from '../../core/time.js';
 import { isFirebaseConfigured } from '../../firebase-config.js';
@@ -27,6 +27,9 @@ import { downloadPayslipPdf } from '../../core/payslip-pdf.js';
 import { getCompany } from '../../core/store.js';
 import { fmtNAD } from '../../core/ui.js';
 import { centsToNAD } from '../../core/payroll.service.js';
+import * as queries from '../../core/queries.service.js';
+import { QUERY_CATEGORIES } from '../../core/queries.service.js';
+import { on as onEvent } from '../../core/events.js';
 
 export async function render(root, ctx) {
   const session = currentSession();
@@ -45,6 +48,7 @@ export async function render(root, ctx) {
     const recent = crew ? await ops.myClockEvents(session.userId, 5) : [];
     const todayCats = crew ? await hours.dayCategoriesFor(crew.id, todayKey()) : null;
     const mySlips = await payroll.myPayslips(session.userId);
+    const myQueries = await queries.myPayslipQueries(session.userId);
 
     const statusDef = trip ? tripStatus(trip.status) : null;
 
@@ -176,7 +180,9 @@ export async function render(root, ctx) {
         <div class="card-title">${icon('file-text', 18)} My payslips</div>
         ${mySlips.length ? `
         <div class="payslip-list">
-          ${mySlips.map((s) => `
+          ${mySlips.map((s) => {
+            const openQ = myQueries.find(q => q.payslipId === s.id && q.status === 'open');
+            return `
           <div class="clocking-item">
             <div class="ci-main">
               <span class="ci-date">${esc(s.tripRef)} · ${esc(fmtDate(s.createdAt))}</span>
@@ -184,16 +190,45 @@ export async function render(root, ctx) {
             </div>
             <div class="ci-side">
               <span class="badge badge-success">Net ${esc(fmtNAD(centsToNAD(s.netCents)))}</span>
+              <button class="btn btn-outline btn-sm" data-myview="${esc(s.id)}">${icon('eye', 14)} View</button>
               <button class="btn btn-outline btn-sm" data-mypdf="${esc(s.id)}">${icon('download', 14)} PDF</button>
+              ${openQ
+                ? `<span class="badge badge-warning" title="A query on this payslip is waiting for an answer">${icon('help', 13)} Query open</span>`
+                : `<button class="btn btn-outline btn-sm" data-myquery="${esc(s.id)}">${icon('help', 14)} Query</button>`}
             </div>
-          </div>`).join('')}
+          </div>`;}).join('')}
         </div>
-        <p class="text-xs text-muted" style="margin:.8rem 0 0">Only you and the payroll team can see these. Every line of each payslip is also downloadable as a PDF for printing.</p>` : `
+        <p class="text-xs text-muted" style="margin:.8rem 0 0">Every payslip stays here permanently. If anything looks wrong, press <b>Query</b> — the payroll team answers it and you will see the answer below under "My queries".</p>` : `
         <div class="empty-state">
           ${icon('file-text', 30)}
           <div class="title">No payslips yet</div>
-          <p>Payslips appear here after payroll is approved. Only you and the payroll team can see them.</p>
+          <p>Payslips appear here after payroll is approved — and they stay here forever. Only you and the payroll team can see them.</p>
         </div>`}
+      </section>
+
+      <section class="card" aria-label="My payslip queries">
+        <div class="card-title">${icon('help', 18)} My queries</div>
+        ${myQueries.length ? `
+        <div class="clocking-list">
+          ${myQueries.map((q) => `
+          <div class="clocking-item" style="align-items:flex-start">
+            <div class="ci-main" style="flex-direction:column;align-items:flex-start;gap:.2rem">
+              <span class="ci-date">${esc(q.tripRef || 'Payslip')} · ${esc(fmtDateTime(q.createdAt))}</span>
+              <span class="text-small">${esc(q.message)}</span>
+              ${q.status === 'answered' ? `
+                <span class="text-small" style="background:var(--surface-2);border-radius:8px;padding:.45rem .6rem;margin-top:.2rem">
+                  <b>Answer from ${esc(q.respondedBy)}:</b> ${esc(q.response)}
+                </span>` : q.status === 'closed' ? `
+                <span class="text-small text-muted">Closed by ${esc(q.updatedBy)}: ${esc(q.closedReason)}</span>` : `
+                <span class="badge badge-warning">Waiting for an answer</span>`}
+            </div>
+            <div class="ci-side">
+              <span class="badge ${q.status === 'answered' ? 'badge-success' : q.status === 'closed' ? 'badge-neutral' : 'badge-warn'}">${esc(q.status)}</span>
+            </div>
+          </div>`).join('')}
+        </div>` : `
+        <div class="empty-state">${icon('help', 30)}<div class="title">No queries</div><p>If a payslip ever looks wrong, open it and press "Query" — your question goes straight to the payroll team.</p></div>`}
+        <p class="text-xs text-muted" style="margin:.8rem 0 0">Answers appear on this phone automatically. If an answer confirms a mistake, the payroll team corrects it with an <b>adjustment entry</b> on the next payroll run — your payslip is never quietly changed.</p>
       </section>
 
       <section class="card" aria-label="Synchronisation">
@@ -294,6 +329,94 @@ export async function render(root, ctx) {
         downloadPayslipPdf(slip, company, { appVersion: APP.version, generatedAt: new Date().toISOString() });
         toast('Payslip PDF downloaded.', 'success');
       }));
+
+    /* My payslip detail — every line, and a Query button if something is wrong */
+    root.querySelectorAll('[data-myview]').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const slip = mySlips.find(s => s.id === btn.getAttribute('data-myview'));
+        if (!slip) return;
+        const rows = (slip.lines || []).map(l => `
+          <tr>
+            <td>${l.kind === 'earning' ? '<span class="badge badge-success">+</span>' : l.kind === 'deduction' ? '<span class="badge badge-danger">−</span>' : '<span class="badge badge-neutral">i</span>'} ${esc(l.label)}</td>
+            <td class="text-xs text-muted">${esc(l.detail || '')}</td>
+            <td class="text-right">${l.kind === 'info' ? '' : esc(fmtNAD(centsToNAD(l.amountCents)))}</td>
+          </tr>`).join('');
+        const openQ = myQueries.find(q => q.payslipId === slip.id && q.status === 'open');
+        openModal({
+          title: `Payslip — ${slip.tripRef}`, icon: 'file-text', wide: true,
+          body: `
+            <p class="text-small" style="margin:0 0 8px">${esc(slip.position || '')} · ${esc(slip.contractType || '')}${slip.signedContractRef ? ` · Signed contract: <b>${esc(slip.signedContractRef)}</b>` : ''}</p>
+            <div class="table-wrap"><table class="table">
+              <thead><tr><th>Line</th><th>Detail</th><th class="text-right">Amount</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table></div>
+            <div class="pay-summary" style="margin-top:10px">
+              <div>Gross pay <b>${esc(fmtNAD(centsToNAD(slip.grossCents)))}</b></div>
+              <div>Deductions <b>${esc(fmtNAD(centsToNAD(slip.deductionCents)))}</b></div>
+              <div class="net">Net pay <b>${esc(fmtNAD(centsToNAD(slip.netCents)))}</b></div>
+            </div>`,
+          actions: [
+            { label: 'Close', kind: 'btn-outline' },
+            ...(openQ
+              ? []   // one open query per payslip — the button already shows "Query open"
+              : [{
+                  label: 'Query this payslip', kind: 'btn-primary',
+                  onClick: () => { openQueryModal(slip); return true; }
+                }])
+          ]
+        });
+      }));
+
+    /* Raise a payslip query (question / dispute / missing pay) */
+    function openQueryModal(slip) {
+      openModal({
+        title: `Query payslip ${slip.tripRef}`, icon: 'help',
+        body: `
+          <p class="text-xs text-muted" style="margin:0 0 10px">Your question goes to the payroll team with this payslip attached. Their answer will appear on this phone under "My queries".</p>
+          <div class="field">
+            <label class="field-label" for="q-cat">What is it about?</label>
+            <select class="input" id="q-cat">
+              ${QUERY_CATEGORIES.map(c => `<option value="${esc(c.key)}">${esc(c.label)} — ${esc(c.hint)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field" style="margin-top:.6rem">
+            <label class="field-label" for="q-msg">Your message <span class="req">*</span></label>
+            <textarea class="input" id="q-msg" rows="3" placeholder="e.g. My overtime for the night of 14 Nov looks short — I worked until 05:00."></textarea>
+          </div>`,
+        actions: [
+          { label: 'Cancel', kind: 'btn-outline' },
+          {
+            label: 'Send query', kind: 'btn-primary',
+            onClick: async (overlay) => {
+              try {
+                await queries.raisePayslipQuery(
+                  slip,
+                  overlay.querySelector('#q-msg').value,
+                  overlay.querySelector('#q-cat').value
+                );
+                toast('Query sent. The answer will appear under "My queries".', 'success');
+                await paint();
+              } catch (err) {
+                toast(err?.message || 'Could not send the query.', 'error', 6000);
+                return true;
+              }
+            }
+          }
+        ]
+      });
+    }
+    root.querySelectorAll('[data-myquery]').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const slip = mySlips.find(s => s.id === btn.getAttribute('data-myquery'));
+        if (slip) openQueryModal(slip);
+      }));
+
+    /* Live refresh: when payslips or query answers arrive from the server
+       (pull sync), repaint so they appear without a reload. */
+    if (!root._onPulled) {
+      root._onPulled = () => { paint(); };
+      onEvent('sync:pulled', root._onPulled);
+    }
 
     root.querySelector('#crew-logout').addEventListener('click', async () => {
       await logout();

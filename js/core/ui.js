@@ -31,6 +31,7 @@ const PATHS = {
   'calendar': '<rect x="3.5" y="5" width="17" height="16" rx="2.5"/><line x1="3.5" y1="10" x2="20.5" y2="10"/><line x1="8" y1="2.8" x2="8" y2="6.5"/><line x1="16" y1="2.8" x2="16" y2="6.5"/>',
   'file': '<path d="M13.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5Z"/><polyline points="13.5 3 13.5 8.5 19 8.5"/>',
   'file-text': '<path d="M13.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5Z"/><polyline points="13.5 3 13.5 8.5 19 8.5"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/>',
+  'help': '<circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.2a2.8 2.8 0 1 1 4 3.4c-.8.5-1.3 1-1.3 1.9"/><circle cx="12" cy="17.3" r="0.9" fill="currentColor" stroke="none"/>',
   'download': '<path d="M12 4v11"/><polyline points="7 10.5 12 15.5 17 10.5"/><path d="M4 19.5h16"/>',
   'upload': '<path d="M12 15V4"/><polyline points="7 9 12 4 17 9"/><path d="M4 19.5h16"/>',
   'wifi': '<path d="M2.5 9.5a14 14 0 0 1 19 0"/><path d="M5.5 12.8a9.5 9.5 0 0 1 13 0"/><path d="M8.6 16a5 5 0 0 1 6.8 0"/><circle cx="12" cy="19.2" r="0.9" fill="currentColor" stroke="none"/>',

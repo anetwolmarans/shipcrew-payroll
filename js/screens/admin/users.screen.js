@@ -70,28 +70,50 @@ export async function render(root, ctx) {
     content.querySelector('#users-source').textContent = source;
 
     content.querySelector('#users-table').innerHTML = `
-      <div class="table-wrap"><table class="table">
-        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Employee no.</th><th>Status</th><th>Last login</th>${canManage ? '<th>Manage</th>' : ''}</tr></thead>
+      <div class="table-wrap"><table class="table table-compact">
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Emp. no.</th><th>Status</th><th>Last login</th>${canManage ? '<th></th>' : ''}</tr></thead>
         <tbody>
           ${users.map((u) => `
           <tr>
-            <td><span class="row"><span class="avatar" style="width:32px;height:32px;font-size:.75rem">${esc(avatarInitials(u.fullName))}</span><span class="cell-strong">${esc(u.fullName || 'Unnamed')}</span></span></td>
+            <td><span class="row"><span class="avatar" style="width:26px;height:26px;font-size:.62rem">${esc(avatarInitials(u.fullName))}</span><span class="cell-strong">${esc(u.fullName || 'Unnamed')}</span></span></td>
             <td class="text-small">${esc(u.email || '')}</td>
             <td><span class="badge badge-${esc(roleColor(u.role))}">${esc(roleLabel(u.role))}</span></td>
             <td class="text-small">${esc(u.employeeId || '—')}</td>
             <td>${u.status === 'active' ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Disabled</span>'}</td>
             <td class="text-small nowrap">${u.lastLoginAt ? esc(fmtDateTime(u.lastLoginAt)) : '—'}</td>
             ${canManage ? `
-            <td><span class="row" style="gap:.3rem;flex-wrap:wrap">
+            <td class="text-right"><span class="row" style="gap:.25rem;justify-content:flex-end;flex-wrap:nowrap">
               <button class="btn btn-outline btn-sm" data-role="${esc(u.id)}" title="Change role">${icon('shield', 13)} Role</button>
-              <button class="btn btn-outline btn-sm" data-pass="${esc(u.id)}" title="Reset password">${icon('key', 13)} Password</button>
-              <button class="btn ${u.status === 'active' ? 'btn-danger' : 'btn-outline'} btn-sm" data-status="${esc(u.id)}" data-next="${u.status === 'active' ? 'inactive' : 'active'}">
-                ${u.status === 'active' ? 'Disable' : 'Enable'}
+              <button class="btn btn-outline btn-sm" data-pass="${esc(u.id)}" title="Reset password">${icon('key', 13)} Pass</button>
+              <button class="btn ${u.status === 'active' ? 'btn-danger' : 'btn-outline'} btn-sm" data-status="${esc(u.id)}" data-next="${u.status === 'active' ? 'inactive' : 'active'}" title="${u.status === 'active' ? 'Disable' : 'Enable'} account">
+                ${u.status === 'active' ? 'Dis.' : 'En.'}
               </button>
             </span></td>` : ''}
           </tr>`).join('')}
         </tbody>
-      </table></div>`;
+      </table></div>
+      <div class="user-cards">
+        ${users.map((u) => `
+        <div class="user-card">
+          <div class="row" style="justify-content:space-between;align-items:flex-start">
+            <span class="row"><span class="avatar" style="width:34px;height:34px">${esc(avatarInitials(u.fullName))}</span><span><span class="cell-strong">${esc(u.fullName || 'Unnamed')}</span><div class="text-xs text-muted">${esc(u.email || '')}</div></span></span>
+            ${u.status === 'active' ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Disabled</span>'}
+          </div>
+          <div class="row" style="gap:.4rem;flex-wrap:wrap;margin-top:.55rem">
+            <span class="badge badge-${esc(roleColor(u.role))}">${esc(roleLabel(u.role))}</span>
+            ${u.employeeId ? `<span class="badge badge-neutral">${esc(u.employeeId)}</span>` : ''}
+          </div>
+          ${u.lastLoginAt ? `<div class="text-xs text-muted" style="margin-top:.45rem">Last login ${esc(fmtDateTime(u.lastLoginAt))}</div>` : '<div class="text-xs text-muted" style="margin-top:.45rem">Never signed in</div>'}
+          ${canManage ? `
+          <div class="row" style="gap:.35rem;margin-top:.6rem;flex-wrap:wrap">
+            <button class="btn btn-outline btn-sm" data-role="${esc(u.id)}">${icon('shield', 13)} Role</button>
+            <button class="btn btn-outline btn-sm" data-pass="${esc(u.id)}">${icon('key', 13)} Pass</button>
+            <button class="btn ${u.status === 'active' ? 'btn-danger' : 'btn-outline'} btn-sm" data-status="${esc(u.id)}" data-next="${u.status === 'active' ? 'inactive' : 'active'}">
+              ${u.status === 'active' ? 'Disable' : 'Enable'}
+            </button>
+          </div>` : ''}
+        </div>`).join('')}
+      </div>`;
 
     /* Permission matrix */
     const caps = Object.values(CAPABILITIES);
@@ -106,28 +128,31 @@ export async function render(root, ctx) {
       </tbody>`;
 
     if (!canManage) return;
-    content.querySelectorAll('[data-role]').forEach((b) => b.addEventListener('click', () => openRoleModal(b.dataset.role, users)));
-    content.querySelectorAll('[data-pass]').forEach((b) => b.addEventListener('click', () => openPasswordModal(b.dataset.pass, users)));
-    content.querySelectorAll('[data-status]').forEach((b) => b.addEventListener('click', async () => {
-      const target = users.find(u => u.id === b.dataset.status);
-      if (!target) return;
-      const disabling = b.dataset.next !== 'active';
-      if (disabling) {
-        const ok = await confirmDialog({
-          title: `Disable ${target.fullName}?`,
-          message: 'A disabled account cannot sign in until it is re-enabled. The person keeps all their records and history.',
-          confirmLabel: 'Disable account', danger: true
-        });
-        if (!ok) return;
-      }
-      try {
-        await adminSetStatus(target.id, b.dataset.next);
-        toast(disabling ? 'Account disabled.' : 'Account re-enabled.', 'success');
-        paint();
-      } catch (err) {
-        toast(err?.message || 'Could not update the account.', 'error', 6000);
-      }
-    }));
+    const bindManage = (scope) => {
+      scope.querySelectorAll('[data-role]').forEach((b) => b.addEventListener('click', () => openRoleModal(b.dataset.role, users)));
+      scope.querySelectorAll('[data-pass]').forEach((b) => b.addEventListener('click', () => openPasswordModal(b.dataset.pass, users)));
+      scope.querySelectorAll('[data-status]').forEach((b) => b.addEventListener('click', async () => {
+        const target = users.find(u => u.id === b.dataset.status);
+        if (!target) return;
+        const disabling = b.dataset.next !== 'active';
+        if (disabling) {
+          const ok = await confirmDialog({
+            title: `Disable ${target.fullName}?`,
+            message: 'A disabled account cannot sign in until it is re-enabled. The person keeps all their records and history.',
+            confirmLabel: 'Disable account', danger: true
+          });
+          if (!ok) return;
+        }
+        try {
+          await adminSetStatus(target.id, b.dataset.next);
+          toast(disabling ? 'Account disabled.' : 'Account re-enabled.', 'success');
+          paint();
+        } catch (err) {
+          toast(err?.message || 'Could not update the account.', 'error', 6000);
+        }
+      }));
+    };
+    bindManage(content.querySelector('#users-table'));
   }
 
   /* ---------------- Add user ---------------- */
