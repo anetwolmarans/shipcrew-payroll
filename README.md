@@ -2,23 +2,22 @@
 
 A payroll management system for a Namibian fishing company: crew records, vessels, trips, clock-in/clock-out, working hours, catch & quota commission, statutory deductions, payslips and reports — built to work **on fishing vessels with no internet**.
 
-**This build is Phase 4 of 6 (Working Hours & Catch) — on top of the registers, crew clocking, device PINs and the automatic sync engine, hours are now categorised automatically (ordinary, overtime, night, Sunday, public holiday), with breaks, rest warnings, supervisor corrections, the catch register and the six quota-allocation methods.** It is a complete, working app — not a mock-up — and it is deliberately delivered in tested phases. See `docs/06-roadmap.md` for what each phase adds.
+**This build is v2.5.0 — all six phases complete (Phase 6: Reporting & Deployment).** On top of the registers, crew clocking, device PINs, the automatic sync engine, automatically categorised hours and the verified payroll engine (PAYE + SSC, locked runs, PDF payslips, the payslip query loop), the report library is now live: 11 reports, each exportable as PDF, Excel (.xlsx) and CSV — all generated on the device, offline. See `docs/06-roadmap.md` and `docs/13-reports.md`. Before going live with real data, complete the production security review: `docs/14-security-review.md`.
 
 ---
 
-## 1. What is included so far
+## 1. What is included
 
-| Working today | Arrives in later phases |
+| Working today | |
 |---|---|
-| Sign-in with roles (crew vs 5 staff roles) | Hour categories & corrections (Phase 4) |
-| Works offline after first load (PWA) | Payroll, PAYE, SSC, payslips (Phase 5) |
-| **Crew register** with secured banking details | Reports and exports (Phase 6) |
-| **Vessel register** with crew lists & trip history | |
-| **Trip register** with the 8-status flow & permanent status history | |
-| **Assignments** with preserved history (one live trip per crew member) | |
-| **Crew CLOCK IN / CLOCK OUT** — duplicate-proof, trip-validated, offline | |
-| **Attendance view**: raw clockings with totals | |
-| **In-app user management**: create logins, change roles, reset passwords, disable | |
+| Sign-in with roles (crew vs 5 staff roles) | **Payroll**: contracts (hourly / daily at sea / fixed), PAYE + SSC from verified rules, per-trip runs, approval & locking, adjustment entries |
+| Works offline after first load (PWA) | **Payslips**: one per crew member per trip, PDF generated on the device, crew see only their own |
+| **Crew register** with secured banking details | **Payslip queries**: crew raise questions/disputes, admins answer — the full loop |
+| **Vessel register** with crew lists & trip history | **Report library**: crew, vessels, trips, attendance & hours, catch, quota allocations, payroll summary, statutory contributions, payslip register, queries, audit trail |
+| **Trip register** with the 8-status flow & permanent status history | **Exports**: PDF (print-ready), Excel .xlsx (real workbook), CSV — with filters, works offline, every export audited |
+| **Assignments** with preserved history (one live trip per crew member) | **Management dashboard**: live fleet, catch this month, latest payroll, open queries |
+| **Crew CLOCK IN / CLOCK OUT** — duplicate-proof, trip-validated, offline | **Automatic hour categories**: ordinary, overtime, night, Sunday, public holiday; breaks; supervisor corrections with full history |
+| **In-app user management**: create logins, change roles, reset passwords, disable | **Catch register & six quota-allocation methods** (amend-only history) |
 | **Device PIN** (4–8 digits): unlock a locked device offline — at sea | |
 | **Device registry** with administrator revoke / reinstate (lost phone protection) | |
 | **Automatic duplicate-proof sync** with per-record states (saved / waiting / synced / failed — kept) | |
@@ -29,7 +28,7 @@ A payroll management system for a Namibian fishing company: crew records, vessel
 | Session auto-lock + "Lock now" button for shared devices | |
 | Demo mode — try it before touching Firebase | |
 
-**No payroll rates are invented.** The Statutory Rules screen lists every Namibian law the payroll will use (Labour Act, Regulations Relating to Fishers GN 308/2025, SSC Act, Income Tax Act / NamRA) — all marked "Awaiting verification". Phase 5 verifies each rule against the official source before any calculation happens.
+**No payroll rates are invented.** The Statutory Rules screen lists every rule the payroll uses (Labour Act 2007 + premiums, Regulations Relating to Fishers GN 308/2025, SSC Act 0.9% + 0.9% with the N$500–N$12,500 insurable band, PAYE 2026/27 annualise-÷12 tables) — **each verified against its official source in Phase 5**, with the source cited on screen. The formulas are locked against editing by anyone, including administrators; updates arrive only as verified, versioned releases.
 
 ---
 
@@ -86,7 +85,7 @@ Once the app is open (locally or on your deployed website):
 
 ## 5. Test it
 
-Work through `docs/04-testing-guide.md` — a click-by-click checklist with expected results. Sections A–G cover the foundation (sign-in, roles, offline, security); **sections H–O cover Phase 2: crew register, vessels, trips, assignments, clocking and user management**; **sections P–R cover Phase 3: the device PIN, revocation and the sync engine** (see also `docs/10-devices-pin-sync.md`).
+Work through `docs/04-testing-guide.md` — a click-by-click checklist with expected results. Sections A–G cover the foundation (sign-in, roles, offline, security); **H–O cover Phase 2** (crew, vessels, trips, assignments, clocking, users); **P–R cover Phase 3** (device PIN, revocation, sync — see also `docs/10-devices-pin-sync.md`); **S–U cover Phase 4** (hour categories, breaks & corrections, catch & quota — see also `docs/11-working-hours-catch.md`); **V–X cover Phase 5** (contracts, payroll runs, payslips & adjustments — see also `docs/12-payroll.md`); **Y covers the payslip dispute loop** (v2.4.0); **Z covers Phase 6** (reports, exports, dashboard, production review — see also `docs/13-reports.md` and `docs/14-security-review.md`).
 
 ## 6. Connect Firebase (real accounts, real data)
 
@@ -125,6 +124,8 @@ Plain English: **Firebase and GitHub do two different jobs.** Firebase holds you
 | `docs/08-android-apk.md` | Install on Android phones and build an APK |
 | `docs/09-deployment-github-pages.md` | Put the app online with GitHub Pages (repo becomes the website) |
 | `docs/10-devices-pin-sync.md` | Devices, the offline PIN, revocation and how sync works |
+| `docs/13-reports.md` | The report library and PDF / Excel / CSV exports (Phase 6) |
+| `docs/14-security-review.md` | Production security review with sign-off table — complete before going live |
 | `rules/firestore.rules` | The server-side security rules (deployed in step 6 of the Firebase guide) |
 
 ---

@@ -130,11 +130,16 @@ shipcrew-payroll/
 │   ├── core/                Services: idb, security, time, events,
 │   │                        permissions, audit, store (seed), auth, sync,
 │   │                        firebase loader, ui toolkit, router,
-│   │                        operations (Phase 2 business rules)
+│   │                        operations, hours & catch (Phase 4),
+│   │                        payroll + payslip PDF (Phase 5),
+│   │                        queries (v2.4.0 dispute loop),
+│   │                        report-data / report-xlsx / report-pdf (Phase 6)
 │   └── screens/             login, lock, crew home (clocking),
 │                            admin: dashboard, crew, vessels, trips,
-│                            attendance, users, devices, audit, settings,
-│                            statutory, roadmap, future-module info
+│                            attendance, catch, contracts, payroll,
+│                            payslips, queries, reports (Phase 6),
+│                            users, devices, audit, settings,
+│                            statutory, roadmap
 ├── rules/firestore.rules    Server-side security rules
 ├── docs/                    The beginner guides
 └── start-*.bat/.command/.sh Local run scripts

@@ -39,12 +39,11 @@ function pdfEscapeText(s) {
   return out.replaceAll('\\', '\\\\').replaceAll('(', '\\(').replaceAll(')', '\\)');
 }
 
-class PdfPage {
+export class PdfPage {
   constructor(width, height) {
     this.w = width; this.h = height;
     this.ops = [];          // content stream operators
-  }
-  /** Draw a text string. align: 'left' | 'right' | 'center'. tracking: letter spacing. */
+  }  /** Draw a text string. align: 'left' | 'right' | 'center'. tracking: letter spacing. */
   text(x, y, size, str, { bold = false, align = 'left', color = null, tracking = 0 } = {}) {
     const font = bold ? '/F2' : '/F1';
     let tx = x;
@@ -105,7 +104,7 @@ const HELV_METRICS = {
 };
 
 /** Assemble the PDF file bytes from pages. */
-function buildPdf(pages) {
+export function buildPdf(pages) {
   const enc = new TextEncoder();
   const objects = [];      // array of object bodies
   const pushObj = (body) => { objects.push(body); return objects.length; };

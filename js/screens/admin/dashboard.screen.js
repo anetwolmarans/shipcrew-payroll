@@ -1,7 +1,8 @@
 /**
- * dashboard.screen.js — Management overview: fleet stats, system health and
- * the latest activity. Stat cards show live counts from the local database;
- * they fill up as modules arrive in Phases 2–6.
+ * dashboard.screen.js — Management overview: live fleet, catch, payroll and
+ * system-health stats plus the latest activity. All figures come from the
+ * local database; with Phase 6 every card shows real data (catch tonnage
+ * this month, latest payroll net, open payslip queries).
  */
 import { renderAdminShell } from './layout.js';
 import { icon, esc, fmtNAD, updateSyncChips, toast } from '../../core/ui.js';
@@ -37,18 +38,36 @@ export async function render(root, ctx) {
   }
 
   /* Stat cards */
-  const [vessels, trips, crew, openClockEvents, sync, auditAll] = await Promise.all([
+  const [vessels, trips, crew, openClockEvents, sync, auditAll, catchRecords, runs, queries] = await Promise.all([
     getAll(STORES.VESSELS), getAll(STORES.TRIPS), getAll(STORES.CREW),
-    getAll(STORES.CLOCK_EVENTS), syncState(), getAll(STORES.AUDIT_LOGS)
+    getAll(STORES.CLOCK_EVENTS), syncState(), getAll(STORES.AUDIT_LOGS),
+    getAll(STORES.CATCH_RECORDS), getAll(STORES.PAYROLL_CALCULATIONS), getAll(STORES.PAYSLIP_QUERIES)
   ]);
+
+  /* This month in Windhoek time, e.g. '2026-11' — used for catch tonnage.
+     Intl 'sv-SE' formats as YYYY-MM, which compares cleanly as a string. */
+  const monthKeyFmt = (iso) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Africa/Windhoek', year: 'numeric', month: '2-digit' }).format(new Date(iso));
+  const nowParts = new Intl.DateTimeFormat('en', { timeZone: 'Africa/Windhoek', year: 'numeric', month: '2-digit' }).formatToParts(new Date())
+    .reduce((p, x) => { p[x.type] = x.value; return p; }, {});
+  const monthKey = `${nowParts.year}-${nowParts.month}`;
+  const monthName = new Intl.DateTimeFormat('en', { timeZone: 'Africa/Windhoek', month: 'long', year: 'numeric' }).format(new Date());
+  const monthCatchKg = catchRecords
+    .filter(c => c.landedAt && monthKeyFmt(c.landedAt) === monthKey)
+    .reduce((sum, c) => sum + (Number(c.weightKg) || 0), 0);
+
+  /* Latest payroll run — locked runs are final; drafts are marked as such. */
+  const latestRun = runs.slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0] || null;
+  const openQueries = queries.filter(q => q.status === 'open').length;
+
   const stats = [
     { label: 'Active vessels', icon: 'ship', value: vessels.filter(v => v.status === 'active').length, sub: 'From the vessel register' },
     { label: 'Trips at sea', icon: 'map', value: trips.filter(t => t.status === 'at_sea').length, sub: `${trips.length} trip${trips.length === 1 ? '' : 's'} in the register` },
     { label: 'Crew members', icon: 'users', value: crew.filter(c => c.employmentStatus === 'active').length, sub: `Active of ${crew.length} registered` },
     { label: 'Clocked in now', icon: 'clock', value: openClockEvents.filter(e => e.clockInAt && !e.clockOutAt).length, sub: 'Open clock events' },
-    { label: 'Pending approvals', icon: 'user-check', value: 0, sub: 'Attendance review arrives in Phase 4' },
+    { label: `Catch — ${monthName}`, icon: 'fish', value: `${(monthCatchKg / 1000).toLocaleString('en', { maximumFractionDigits: 1 })} t`, sub: `${monthCatchKg.toLocaleString('en', { maximumFractionDigits: 0 })} kg landed this month` },
+    { label: 'Latest payroll', icon: 'coins', value: latestRun ? fmtNAD(latestRun.totals?.netCents ? latestRun.totals.netCents / 100 : 0) : fmtNAD(0), nad: true, sub: latestRun ? `${latestRun.tripRef} · ${latestRun.status === 'locked' ? 'approved & locked' : latestRun.status}` : 'No payroll run yet' },
+    { label: 'Open payslip queries', icon: 'help', value: openQueries, sub: openQueries ? 'Answer them on the Payslip Queries screen' : 'All crew questions answered' },
     { label: 'Waiting to sync', icon: 'refresh', value: sync.pending, sub: sync.live ? 'Uploads automatically when online' : 'Sync starts once Firebase is connected' },
-    { label: 'Payroll this period', icon: 'coins', value: fmtNAD(0), nad: true, sub: 'Payroll calculation arrives in Phase 5' },
     { label: 'Audit entries', icon: 'activity', value: auditAll.length, sub: 'Every sensitive action is recorded' }
   ];
   content.querySelector('#stat-grid').innerHTML = stats.map((s) => `
@@ -58,15 +77,15 @@ export async function render(root, ctx) {
       <div class="stat-sub">${esc(s.sub)}</div>
     </div>`).join('');
 
-  /* Getting started */
+  /* Phase 6 finish line */
   content.querySelector('#getting-started-card').innerHTML = `
-    <div class="card-title">${icon('flag', 18)} Getting started (Phase 3)</div>
+    <div class="card-title">${icon('flag', 18)} All six phases are built — your finish-line checklist</div>
     <div class="getting-started">
-      <div class="gs-step done"><span class="num">1</span><div><div class="gs-title">Registers are live</div><div class="gs-desc">Crew, Vessels and Trips are real modules — add a crew member or plan a trip any time.</div></div></div>
-      <div class="gs-step"><span class="num">2</span><div><div class="gs-title">Activate this device with a PIN</div><div class="gs-desc">Devices → <b>Set up PIN</b>: a 4–8 digit quick PIN that unlocks this device without internet (crew at sea). It stays on the device — never uploaded.</div></div></div>
-      <div class="gs-step"><span class="num">3</span><div><div class="gs-title">Try Lock now</div><div class="gs-desc">The padlock in the top bar locks the screen immediately; unlock with the PIN or the password.</div></div></div>
-      <div class="gs-step"><span class="num">4</span><div><div class="gs-title">Watch the sync states</div><div class="gs-desc">Every record shows where it is: saved locally → waiting to sync → synchronised (or failed — kept). Uploads happen automatically and can never create duplicates.</div></div></div>
-      <div class="gs-step"><span class="num">5</span><div><div class="gs-title">Run the Phase 3 checklist</div><div class="gs-desc">Work through <span class="mono">docs/04-testing-guide.md</span> sections P–R (device PIN, revocation, sync states). Full story: <span class="mono">docs/10-devices-pin-sync.md</span>.</div></div></div>
+      <div class="gs-step done"><span class="num">1</span><div><div class="gs-title">Run your first report</div><div class="gs-desc"><b>Reports &amp; Exports</b> (left menu) — crew, trips, hours, catch, payroll, PAYE/SSC and the audit trail, each exportable as PDF, Excel and CSV. Full story: <span class="mono">docs/13-reports.md</span>.</div></div></div>
+      <div class="gs-step"><span class="num">2</span><div><div class="gs-title">Do the production security review</div><div class="gs-desc">Work through <span class="mono">docs/14-security-review.md</span> before real payroll goes live — it ends with a sign-off table you keep on file.</div></div></div>
+      <div class="gs-step"><span class="num">3</span><div><div class="gs-title">Keep devices and data safe</div><div class="gs-desc">Set PINs on every crew device (Devices screen), and take regular backups: <span class="mono">docs/05-backup-recovery.md</span>.</div></div></div>
+      <div class="gs-step"><span class="num">4</span><div><div class="gs-title">Install the app on phones</div><div class="gs-desc">The app installs from the browser (install icon in the address bar) — or use the signed Android APK from <span class="mono">docs/08-android-apk.md</span>. No app store needed.</div></div></div>
+      <div class="gs-step"><span class="num">5</span><div><div class="gs-title">Run the final checklist</div><div class="gs-desc">Phase 6 checks live in <span class="mono">docs/04-testing-guide.md</span> section Z — reports, exports, dashboard and sign-off.</div></div></div>
     </div>`;
 
   /* System status */

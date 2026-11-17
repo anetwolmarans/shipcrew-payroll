@@ -26,7 +26,13 @@ rules_version = '2';
 //      records and quota allocations are append-only or strictly
 //      constrained — nobody deletes history.
 //
-// How to deploy: docs/01-firebase-setup.md, step 5.
+// Phase 6 (reports & exports) added NO new collections and NO new write
+// access: every report is read-only and re-uses the per-collection read
+// rules below, so a report can never show someone data they cannot read
+// on the screens. v2.4.0 (Phase 5.5) added payslip_queries above.
+//
+// How to deploy: docs/01-firebase-setup.md, step 5 (or Guide 9 for the
+// command line: firebase deploy --only firestore:rules).
 // ============================================================================
 service cloud.firestore {
   match /databases/{database}/documents {

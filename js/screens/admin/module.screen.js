@@ -1,25 +1,16 @@
 /**
  * module.screen.js — The information screen for modules that arrive in
- * later phases (currently: Reports & Exports, Phase 6). Clicking a future
- * menu item shows what the module will do and when it arrives — honest
- * information instead of dead buttons. Payroll and Payslips graduated to
- * real screens in Phase 5 (see contracts/payroll/payslips.screen.js).
+ * later phases. Clicking a future menu item shows what the module will do
+ * and when it arrives — honest information instead of dead buttons.
+ * History of graduations: Payroll and Payslips in Phase 5, Reports &
+ * Exports in Phase 6 (see reports.screen.js). With all six phases built
+ * there are no future modules left — the screen now only explains that,
+ * and stays in place in case new modules are ever planned.
  */
 import { renderAdminShell } from './layout.js';
 import { icon, esc } from '../../core/ui.js';
 
-const MODULES = {
-  reports: {
-    title: 'Reports & Exports', phase: 'Phase 6', icon: 'download',
-    summary: 'The full management report library — crew, vessels, trips, attendance, overtime, night work, rest periods, catch and quota, commissions, payroll summaries and costs per vessel and trip, deductions, tax, SSC and the audit report.',
-    items: [
-      'Filter by crew member, vessel, trip, date range, payroll period and status',
-      'Export as PDF, Excel and CSV',
-      'Management dashboard with live fleet and payroll totals'
-    ],
-    tests: 'Final production sign-off'
-  }
-};
+const MODULES = {};
 
 export function render(root, ctx) {
   const key = ctx.params.key;

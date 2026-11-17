@@ -703,3 +703,17 @@ table.table { width: 100%; border-collapse: collapse; font-size: .9rem; min-widt
 
 /* Filters row alignment */
 .table-toolbar { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; }
+
+/* ---------- 26. Report library (Phase 6) ---------- */
+.report-grid { display: grid; grid-template-columns: 1fr; gap: .55rem; }
+@media (min-width: 640px) { .report-grid { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 1000px) { .report-grid { grid-template-columns: repeat(3, 1fr); } }
+.report-tile {
+  display: flex; align-items: center; gap: .6rem; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius, 10px);
+  padding: .65rem .8rem; font: inherit; color: var(--text); cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.report-tile:hover { border-color: var(--teal-500); background: var(--teal-50); }
+.report-tile.active { border-color: var(--teal-600); background: var(--teal-50); box-shadow: inset 3px 0 0 var(--teal-600); font-weight: 600; }
+.report-tile .icon { flex: 0 0 auto; color: var(--teal-700); }

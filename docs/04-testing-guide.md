@@ -287,6 +287,30 @@ Sign in as **System Administrator** (`admin@shipcrew.demo` / `Admin@2026`) or **
 | Y7 | Audit Log | New actions: `payslip_query_raised`, `payslip_query_answered` (and `payslip_query_closed` if closed without an answer — a reason is required) |
 | Y8 | (Live mode) Admin approves payroll on one device; the crew member signs in on another | The payslip ARRIVES on the crew phone (pull sync) — "My payslips" fills in without a reload |
 
-## When every box ticks (Phases 1–5)
+## Z. Reports & exports, dashboard, production review (Phase 6 — v2.5.0)
 
-Congratulations — the payroll engine is verified: contracts price the trips, statutory deductions are computed from verified rules, approved payroll locks forever, and every crew member can see (and print) their own payslip. Tell your developer **"Phase 5 approved"** and Phase 6 (Reporting & Deployment: report library, dashboards, exports, production review) begins.
+Run these in **demo mode** first (the demo data has crew, trips, hours and a payroll to report on), then once in live mode after real data exists.
+
+| # | Do this | You should see |
+|---|---|---|
+| Z1 | Sign in as System Administrator → **Reports & Exports** (Payroll menu) | The report library: 11 report tiles grouped Operations / Payroll / System, and the first report already built with a row count |
+| Z2 | Select **Attendance & hours summary**, set a date range that covers the demo shifts → **Build report** | One row per crew member who worked: shifts, worked time, ordinary / overtime / night / Sunday / holiday, breaks — with a totals row. Matches the Attendance screen figures |
+| Z3 | Press **PDF** | A downloaded A4-landscape PDF: navy header with the report title, the filter line, the table with a shaded totals row, page numbers; opens in any PDF viewer |
+| Z4 | Press **Excel (.xlsx)** and open the file | A real workbook: bold frozen header, columns sized, hours as decimal hours (e.g. 15.5), a SUM on the hours column gives the totals-row figure |
+| Z5 | Press **CSV** and open in a text editor | Title block, filter line, header, rows, totals — money with no thousand separators, no stray commas |
+| Z6 | Select **Catch register** → no filters → build | Every catch record with species, category, weight, paperwork refs; totals row shows the total kg; matches the Catch & Quota screen |
+| Z7 | Select **Payroll summary** → build | One line per payslip across runs (draft runs marked), gross / PAYE / SSC / net columns with the correct totals; matches the Payroll screen |
+| Z8 | Select **Statutory contributions** → build | Taxable, PAYE, SSC employee and employer per payslip — the figures an accountant needs for NamRA and SSC |
+| Z9 | Select **Audit trail report** → filter by today | Today's actions newest first |
+| Z10 | Sign out → sign in as **Vessel Manager** → Reports | Payroll group is hidden (no payroll reports); operations reports build fine |
+| Z11 | Sign in as **Supervisor** → open any report → build it | The table builds on screen; export buttons show a note that exports are limited to payroll/management/auditor roles |
+| Z12 | Sign in as **Auditor** → Reports | All reports including the audit trail; exports available (read-only role everywhere else) |
+| Z13 | Check the **Audit Log** after your exports | `data_exported` entries naming each report, format, row count and filters |
+| Z14 | Dashboard check | Stat cards show live catch this month (t), latest payroll net with run status, open payslip queries — and the finish-line checklist card |
+| Z15 | Turn off the internet (or DevTools offline) → build a report and export PDF + Excel | Both still work — reports run from the device database, no internet needed |
+| Z16 | The export for a 500-row report | On screen you see the first 300 rows with a note; the downloaded file contains ALL rows (check the PDF/Excel row count) |
+| Z17 | Work through **docs/14-security-review.md** | Every table ticked; sign-off completed for production |
+
+## When every box ticks (all six phases — final sign-off)
+
+Congratulations — the system is complete: registers, clocking, offline sync, automatic hour categories, catch & quota, verified payroll with locked runs and PDF payslips, the dispute loop, and now the full report library with PDF/Excel/CSV exports and the production security review. With section **Z** ticked and docs/14 signed, tell your developer **"Phase 6 approved — go live"** and follow docs/14 section 5 (deployment checklist) to switch the production copy to the live Firebase project.
