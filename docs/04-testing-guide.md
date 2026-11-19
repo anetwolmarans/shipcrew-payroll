@@ -287,7 +287,7 @@ Sign in as **System Administrator** (`admin@shipcrew.demo` / `Admin@2026`) or **
 | Y7 | Audit Log | New actions: `payslip_query_raised`, `payslip_query_answered` (and `payslip_query_closed` if closed without an answer — a reason is required) |
 | Y8 | (Live mode) Admin approves payroll on one device; the crew member signs in on another | The payslip ARRIVES on the crew phone (pull sync) — "My payslips" fills in without a reload |
 
-## Z. Reports & exports, dashboard, production review (Phase 6 — v2.5.0)
+## Z. Reports & exports, dashboard, production review (Phase 6 — v2.5.0; button hotfix in v2.5.1)
 
 Run these in **demo mode** first (the demo data has crew, trips, hours and a payroll to report on), then once in live mode after real data exists.
 

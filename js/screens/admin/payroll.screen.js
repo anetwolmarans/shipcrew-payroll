@@ -46,16 +46,20 @@ export async function render(root, ctx) {
 
   /* Trips that can be built. */
   const builtTripIds = new Set(runs.map(r => r.tripId));
-  const readyRows = ready.map(t => `
+  const lockedTripIds = new Set(runs.filter(r => r.status !== 'draft').map(r => r.tripId));
+  const readyRows = ready.map(t => {
+    const isLocked = lockedTripIds.has(t.id);
+    return `
     <tr>
       <td class="cell-strong">${esc(t.reference)}<div class="text-xs text-muted">${esc(t.vesselName || '')}</div></td>
       <td class="text-small">${t.actualReturnAt ? esc(fmtDate(t.actualReturnAt)) : '—'}</td>
       <td><span class="badge badge-neutral">${esc(t.status.replace('_', ' '))}</span></td>
-      <td class="text-small">${builtTripIds.has(t.id) ? (runs.find(r => r.tripId === t.id)?.status === 'locked' ? 'Locked — no rebuild' : 'Draft exists — rebuild replaces it') : 'Ready'}</td>
+      <td class="text-small">${isLocked ? 'Locked — no rebuild' : builtTripIds.has(t.id) ? 'Draft exists — rebuild replaces it' : 'Ready'}</td>
       <td class="text-right">
-        ${canProcess ? `<button class="btn btn-primary btn-sm" data-build="${esc(t.id)}" data-ref="${esc(t.reference)}">${icon('coins', 14)} Build payroll</button>` : ''}
+        ${(canProcess && !isLocked) ? `<button class="btn btn-primary btn-sm" data-build="${esc(t.id)}" data-ref="${esc(t.reference)}">${icon('coins', 14)} Build payroll</button>` : ''}
       </td>
-    </tr>`).join('') || '<tr><td colspan="5" class="text-muted text-center">No trips in payroll-ready statuses (send a trip through "Send to payroll" on the Trips screen).</td></tr>';
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" class="text-muted text-center">No trips in payroll-ready statuses (send a trip through "Send to payroll" on the Trips screen).</td></tr>';
 
   const body = `
     <div class="banner banner-info">${icon('coins', 18)}<div><b>Phase 5: per-trip payroll.</b>
@@ -107,7 +111,7 @@ export async function render(root, ctx) {
                 toast(`Draft built: ${run.payslips.length} payslip(s), net ${fmtMoneyCents(run.totals.netCents)}.`, 'success');
                 render(root, ctx);
               } catch (err) {
-                btn.disabled = false; btn.textContent = `${icon('coins', 14)} Build payroll`;
+                btn.disabled = false; btn.innerHTML = `${icon('coins', 14)} Build payroll`;
                 toast(err.message, 'error', 6000);
                 return true;
               }

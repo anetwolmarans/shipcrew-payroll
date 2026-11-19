@@ -1,6 +1,6 @@
 # Guide 6 — The Roadmap
 
-The system is delivered in six tested phases. Nothing is skipped; every phase is verified before the next starts. This build = **all six phases complete** (v2.5.0).
+The system is delivered in six tested phases. Nothing is skipped; every phase is verified before the next starts. This build = **all six phases complete** (v2.5.1 — hotfix: payroll button rendering & locked-trip guard).
 
 | Phase | What it delivers | Status |
 |---|---|---|

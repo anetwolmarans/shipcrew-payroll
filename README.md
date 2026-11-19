@@ -2,7 +2,7 @@
 
 A payroll management system for a Namibian fishing company: crew records, vessels, trips, clock-in/clock-out, working hours, catch & quota commission, statutory deductions, payslips and reports — built to work **on fishing vessels with no internet**.
 
-**This build is v2.5.0 — all six phases complete (Phase 6: Reporting & Deployment).** On top of the registers, crew clocking, device PINs, the automatic sync engine, automatically categorised hours and the verified payroll engine (PAYE + SSC, locked runs, PDF payslips, the payslip query loop), the report library is now live: 11 reports, each exportable as PDF, Excel (.xlsx) and CSV — all generated on the device, offline. See `docs/06-roadmap.md` and `docs/13-reports.md`. Before going live with real data, complete the production security review: `docs/14-security-review.md`.
+**This build is v2.5.1 — all six phases complete (Phase 6: Reporting & Deployment).** On top of the registers, crew clocking, device PINs, the automatic sync engine, automatically categorised hours and the verified payroll engine (PAYE + SSC, locked runs, PDF payslips, the payslip query loop), the report library is now live: 11 reports, each exportable as PDF, Excel (.xlsx) and CSV — all generated on the device, offline. See `docs/06-roadmap.md` and `docs/13-reports.md`. Before going live with real data, complete the production security review: `docs/14-security-review.md`.
 
 ---
 
