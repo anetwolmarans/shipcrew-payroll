@@ -323,10 +323,11 @@ Load many employees at once instead of typing them one by one. Payroll & System 
 | AA4 | Press **Import 2 rows** (or however many are OK) | Progress on the button, then a summary banner "N crew members created"; the register behind the modal now includes them |
 | AA5 | Close the modal → search for a newly imported name | The row shows name, position, vessel, status — exactly as the CSV said |
 | AA6 | **Audit Log** | A `crew_created` entry for every imported person (same as typing them by hand) |
-| AA7 | Sign in as Vessel Manager → Crew | There is **no** Bulk import button (manage permission required) |
+| AA7 | Sign in as Vessel Manager → Crew | There is **no** Bulk import button (manage permission required), but the **Import template** button IS present (v2.6.1: the template is available to every signed-in role) |
 | AA8 | Import the same file twice | The second run flags every row "Employee number … already exists in the register — it will NOT be overwritten" |
 | AA9 | Try to choose a `.xlsx` file | The file picker filters to CSV/TXT; if a spreadsheet is forced in anyway, **Check rows** reports a parse error — save the sheet as "CSV (comma-separated)" first |
 | AA10 | In Excel: put a comma inside a name ("Namene, Maria"), wrap the cell in quotes, paste → Check | The comma stays inside the name field |
+| AA11 | As the Vessel Manager (or any role), press **Import template** on the Crew screen | `crew-import-template.csv` downloads — same file the managers get inside the import panel |
 
 ## When every box ticks (all six phases — final sign-off)
 

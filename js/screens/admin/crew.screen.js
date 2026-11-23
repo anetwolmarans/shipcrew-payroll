@@ -35,6 +35,7 @@ export async function render(root, ctx) {
       </div>
       ${canManage ? `<button class="btn btn-primary btn-sm" id="add-crew">${icon('plus', 16)} Add crew member</button>
       <button class="btn btn-outline btn-sm" id="bulk-import">${icon('upload', 16)} Bulk import</button>` : ''}
+      <button class="btn btn-outline btn-sm" id="download-template" title="The CSV column layout for bulk-importing crew — available to everyone">${icon('download', 16)} Import template</button>
       <span class="text-small text-muted" id="crew-count"></span>
     </div>
     <div id="crew-table"></div>
@@ -261,9 +262,7 @@ export async function render(root, ctx) {
     const previewEl = overlay.querySelector('#imp-preview');
     const goBtn = overlay.querySelector('#imp-go');
 
-    overlay.querySelector('#imp-template').addEventListener('click', () => {
-      downloadFile('crew-import-template.csv', crewTemplateCsv(), 'text/csv');
-    });
+    overlay.querySelector('#imp-template').addEventListener('click', saveImportTemplate);
 
     overlay.querySelector('#imp-file').addEventListener('change', async (e) => {
       const file = e.target.files && e.target.files[0];
@@ -348,10 +347,20 @@ export async function render(root, ctx) {
     });
   }
 
+  /* One template file, one way to get it — used by the toolbar (everyone)
+     and by the bulk-import modal (managers). The CSV contains only the
+     column layout and clearly-fake example rows, so any staff role may
+     download it: the person preparing the list is often not the person
+     who runs the import. */
+  function saveImportTemplate() {
+    downloadFile('crew-import-template.csv', crewTemplateCsv(), 'text/csv');
+  }
+
   const addBtn = content.querySelector('#add-crew');
   if (addBtn) addBtn.addEventListener('click', () => openCrewModal(null));
   const bulkBtn = content.querySelector('#bulk-import');
   if (bulkBtn) bulkBtn.addEventListener('click', () => openBulkImportModal());
+  content.querySelector('#download-template').addEventListener('click', saveImportTemplate);
   content.querySelector('#crew-search').addEventListener('input', (e) => paint(e.target.value));
 
   await paint();
