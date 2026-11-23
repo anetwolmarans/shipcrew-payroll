@@ -363,7 +363,7 @@ export function showPayslipDetail(p, run, company) {
       <div class="pay-summary" style="margin-top:10px">
         <div>Gross pay <b>${esc(fmtMoneyCents(p.grossCents))}</b></div>
         <div>Deductions <b>${esc(fmtMoneyCents(p.deductionCents))}</b></div>
-        <div>Employer SSC (not deducted) <b>${esc(fmtMoneyCents(p.employerSscCents))}</b></div>
+        <div>Employer SSC (not deducted) <b>${esc(fmtMoneyCents(p.employerSscCents))}</b>${(Number(p.sscBasicCents) || 0) > (Number(p.sscMonthInsurableCents) || 0) ? ' <span class="badge badge-warning">at the monthly maximum</span>' : ''}</div>
         <div class="net">Net pay <b>${esc(fmtMoneyCents(p.netCents))}</b></div>
       </div>`,
     actions: [

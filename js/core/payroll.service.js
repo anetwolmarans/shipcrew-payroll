@@ -694,9 +694,14 @@ export function priceCrewTrip({ crew, contract, events, allowances, commissionCe
   });
   const deductions = [];
   if (ssc.employeeCents > 0) {
+    // When the month's basic salary is above the ceiling, say so on the
+    // payslip — the cap is a rule people ask about, so make it visible.
+    const capped = monthBasicCents > ssc.monthInsurableCents;
     deductions.push({
       key: 'ssc_employee', label: 'SSC (employee 0.9%)', amountCents: ssc.employeeCents, statutory: true,
-      detail: `0.9% of ${fmtMoneyCents(ssc.insurableCents)} basic pay this month (month basis ${fmtMoneyCents(ssc.monthInsurableCents)})`
+      detail: capped
+        ? `Month's basic ${fmtMoneyCents(monthBasicCents)} is above the ${fmtMoneyCents(ssc.monthInsurableCents)} ceiling — monthly MAXIMUM charged (0.9% of the ceiling)`
+        : `0.9% of ${fmtMoneyCents(ssc.insurableCents)} basic pay this month (month basis ${fmtMoneyCents(ssc.monthInsurableCents)})`
     });
   }
 

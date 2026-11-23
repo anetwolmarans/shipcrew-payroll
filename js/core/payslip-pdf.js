@@ -325,7 +325,8 @@ export function payslipPdfBytes(payslip, company, meta = {}) {
   y -= empH;
   page.rect(M, y, right - M, empH, { fill: CARD, stroke: LINE, strokeWidth: 0.7 });
   page.text(M + 12, y + empH - 15, 7, 'EMPLOYER CONTRIBUTIONS — NOT DEDUCTED FROM PAY', { bold: true, color: MUTED, tracking: 0.8 });
-  page.text(M + 12, y + 13, 9.5, 'SSC employer share (0.9%)', { color: INK });
+  const sscCapped = (Number(payslip.sscBasicCents) || 0) > (Number(payslip.sscMonthInsurableCents) || 0);
+  page.text(M + 12, y + 13, 9.5, `SSC employer share (0.9%)${sscCapped ? ' - at the monthly maximum' : ''}`, { color: INK });
   page.text(right - 12, y + 13, 9.5, money(payslip.employerSscCents || 0), { align: 'right', color: INK });
 
   /* ============ 7. NOTES + FOOTER ============ */
