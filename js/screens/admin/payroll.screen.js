@@ -14,8 +14,7 @@ import { CAPABILITIES, can } from '../../core/permissions.js';
 import {
   payrollReadyTrips, buildTripRun, approveRun, listRuns, getRun,
   addAdjustment, adjustmentsFor, addAllowance,
-  fmtMoneyCents, ALLOWANCE_TYPES
-} from '../../core/payroll.service.js';
+  fmtMoneyCents, ALLOWANCE_TYPES, reopenRun } from '../../core/payroll.service.js';
 import { reclassifyTrip } from '../../core/hours.service.js';
 import { downloadPayslipPdf } from '../../core/payslip-pdf.js';
 import { getCompany } from '../../core/store.js';
@@ -30,7 +29,7 @@ export async function render(root, ctx) {
   const runRows = runs.map(r => {
     const statusBadge = r.status === 'locked'
       ? '<span class="badge badge-success">approved + locked</span>'
-      : '<span class="badge badge-warning">draft</span>';
+      : `<span class="badge badge-warning">draft</span>${r.reopenedAt ? '<div class="text-xs text-muted">reopened — rebuild &amp; re-approve</div>' : ''}`;
     return `
     <tr>
       <td class="cell-strong">${esc(r.tripRef)}<div class="text-xs text-muted">${esc(r.vesselName || '')}</div></td>
@@ -40,6 +39,7 @@ export async function render(root, ctx) {
       <td class="text-right">
         <button class="btn btn-outline btn-sm" data-run="${esc(r.id)}">${icon('eye', 14)} Review</button>
         ${r.status === 'draft' && canApprove ? `<button class="btn btn-primary btn-sm" data-approve="${esc(r.id)}">${icon('check-circle', 14)} Approve & lock</button>` : ''}
+        ${r.status === 'locked' && canApprove ? `<button class="btn btn-outline btn-sm" data-reopen="${esc(r.id)}">${icon('refresh', 14)} Reopen</button>` : ''}
       </td>
     </tr>`;
   }).join('') || '<tr><td colspan="5" class="text-muted text-center">No payroll runs yet — build one from a trip below.</td></tr>';
@@ -160,7 +160,12 @@ export async function render(root, ctx) {
             { label: 'Close', kind: 'btn-outline' },
             { label: 'Approve & lock', kind: 'btn-primary', onClick: async (overlay) => { await approveFlow(run, overlay); } }
           ]
-        : [{ label: 'Close', kind: 'btn-outline' }]
+        : run.status === 'locked' && canApprove
+          ? [
+              { label: 'Close', kind: 'btn-outline' },
+              { label: 'Reopen…', kind: 'btn-primary', onClick: async (overlay) => { await reopenFlow(run, overlay); } }
+            ]
+          : [{ label: 'Close', kind: 'btn-outline' }]
     });
 
     /* payslip detail inside the review modal */
@@ -171,13 +176,38 @@ export async function render(root, ctx) {
     modalEl?.querySelector('#rv-adjust')?.addEventListener('click', () => adjustForm(run, trip));
   };
 
+  const reopenFlow = async (run, overlay) => {
+    openModal({
+      title: `Reopen locked payroll — ${run.tripRef}`, icon: 'refresh', danger: true,
+      body: `
+        <p style="margin:0 0 10px">Reopening <b>revokes the ${run.payslips.length} issued payslip(s)</b> — crew members stop seeing them — and puts this payroll back to <b>draft</b> so it can be rebuilt and re-approved. The revoked payslips stay in the audit trail with their money fields frozen; nothing is silently rewritten. Your reason is recorded in the audit log.</p>
+        <label class="field-label">Reason for reopening (required)
+          <input id="reopen-reason" type="text" placeholder="e.g. Overtime hours for J. Shipanga were double-counted — correcting" />
+        </label>`,
+      actions: [
+        { label: 'Cancel', kind: 'btn-outline' },
+        {
+          label: 'Reopen run', kind: 'btn-primary', onClick: async (ov) => {
+            const note = ov.querySelector('#reopen-reason').value;
+            try {
+              const { run: updated, revoked } = await reopenRun(run.id, { note });
+              toast(`Payroll reopened — ${revoked} payslip(s) revoked. Rebuild and re-approve when ready.`, 'success', 6000);
+              ov?.remove(); overlay?.remove();
+              render(root, ctx);
+            } catch (err) { toast(err.message, 'error', 6000); return true; }
+          }
+        }
+      ]
+    });
+  };
+
   const approveFlow = async (run, overlay) => {
     const noteEl = overlay.querySelector('#approve-note');
     openModal({
       title: `Approve & lock — ${run.tripRef}`, icon: 'lock', danger: false,
       body: `
         <p style="margin:0 0 10px">Approving <b>issues ${run.payslips.length} payslip(s)</b> and locks this payroll forever.
-        The payslips become visible to each crew member (own payslips only). Numbers can never be edited afterwards — corrections go through adjustment entries on a later run.</p>
+        The payslips become visible to each crew member (own payslips only). Numbers can never be edited afterwards — corrections go through adjustment entries on a later run, or an admin can reopen this payroll (with a recorded reason) if it must be rebuilt.</p>
         <label class="field-label">Approval note (required)
           <input id="approve-note" type="text" placeholder="e.g. Checked hours against the trip sheet — approved for payment" />
         </label>`,
@@ -293,6 +323,11 @@ export async function render(root, ctx) {
     const runId = btn.getAttribute('data-run') || btn.getAttribute('data-approve');
     btn.addEventListener('click', () => reviewRun(runId));
   });
+  content.querySelectorAll('[data-reopen]').forEach(btn =>
+    btn.addEventListener('click', async () => {
+      const run = await getRun(btn.getAttribute('data-reopen'));
+      if (run) await reopenFlow(run, null);
+    }));
 }
 
 /* ---------------- shared helpers ---------------- */

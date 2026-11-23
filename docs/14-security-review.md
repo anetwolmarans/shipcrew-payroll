@@ -14,8 +14,8 @@ Reviewed file: `rules/firestore.rules` (v2.5.0). Findings:
 | 1.2 | Roles read from `users/{uid}` only, which staff cannot rewrite | ✅ Pass — `hasRole()` reads the user document; `users` writes are system-admin only | rules 39–72 |
 | 1.3 | Crew read only their own clock events, payslips, queries, banking | ✅ Pass — every crew-accessible collection filters on `userId == request.auth.uid` | rules 125–145, 242–252, 262–280, 91–101 |
 | 1.4 | Banking visible to payroll/system admins and the owning crew member **only** — not even vessel managers | ✅ Pass | rules 91–101 |
-| 1.5 | Payslips: created only on approval, **never updated or deleted**, crew self-read | ✅ Pass | rules 242–252 |
-| 1.6 | Payroll runs: once `locked`, totals and payslip list can never change | ✅ Pass — locked runs reject non-locked next states and changed `payslips` | rules 225–236 |
+| 1.5 | Payslips: created only on approval, never deleted; the ONLY update allowed is the v2.8.0 revoke flip (status issued→revoked) with every money field and recipient frozen (`unchanged`) — crew self-read | ✅ Pass | rules 248–265 |
+| 1.6 | Payroll runs: once `locked`, totals and the payslip list can never change; the only exit from `locked` is a v2.8.0 reopen to `draft` with `payslips` unchanged (reason recorded); drafts only are deletable | ✅ Pass | rules 231–247 |
 | 1.7 | Payslip queries: crew open against own payslip only; message immutable; only admins answer/close | ✅ Pass (added v2.4.0) | rules 262–280 |
 | 1.8 | Audit log append-only: anyone may add **their own** entry, only admin/auditor read, nobody edits | ✅ Pass | rules 291–297 |
 | 1.9 | Statutory rules (tax/SSC formulas): **no app role can write them**, not even admins | ✅ Pass — `allow write: if false` | rules 215–221 |

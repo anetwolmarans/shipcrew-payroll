@@ -40,7 +40,7 @@ export async function render(root, ctx) {
     const all = await queries.listPayslipQueries();
     const open = all.filter(q => q.status === 'open');
     const answered = all.filter(q => q.status !== 'open');
-    const slips = await listPayslips(null);
+    const slips = (await listPayslips(null)).filter(s => s.status !== 'revoked');
 
     const rowHtml = (q) => {
       const slip = slips.find(s => s.id === q.payslipId);

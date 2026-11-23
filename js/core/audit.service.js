@@ -72,6 +72,7 @@ export const AUDIT_ACTIONS = {
   ALLOWANCE_ADDED: 'allowance_added',
   PAYROLL_DRAFTED: 'payroll_drafted',
   PAYROLL_APPROVED: 'payroll_approved',
+  PAYROLL_REOPENED: 'payroll_reopened',
   ADJUSTMENT_ADDED: 'adjustment_added',
   PAYSLIP_VIEWED: 'payslip_viewed',
   /* ---- v2.4.0: payslip queries (disputes/questions) ---- */

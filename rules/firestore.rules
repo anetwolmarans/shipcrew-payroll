@@ -230,15 +230,22 @@ service cloud.firestore {
     }
     match /payroll_calculations/{calcId} {
       // Payroll runs (draft → locked). Staff read; only payroll/system admins
-      // write. Once status == 'locked' the document can never change again.
+      // write. A locked run can never change its NUMBERS: the only transition
+      // out of 'locked' is a v2.8.0 REOPEN back to 'draft' — the payslips
+      // array must be unchanged (the issued payslips are revoked on the
+      // payslips collection instead, never rewritten) and the reason is
+      // recorded in approvalHistory + the audit log.
       allow read: if isStaff();
       allow create, update: if (isSystemAdmin() || isPayrollAdmin())
         && request.resource.data.status in ['draft', 'approved', 'locked']
         && request.resource.data.totals.grossCents is int
         && request.resource.data.totals.netCents is int
-        && (!(resource.data.status == 'locked') || request.resource.data.status == 'locked')
+        && (!(resource.data.status == 'locked') || request.resource.data.status == 'locked'
+             || request.resource.data.status == 'draft')
         && (resource.data.status != 'locked' || unchanged('payslips'));
-      allow delete: if false;
+      // Drafts may be replaced by a rebuild (one draft per trip) — but a
+      // locked run is never deletable.
+      allow delete: if (isSystemAdmin() || isPayrollAdmin()) && resource.data.status == 'draft';
     }
     match /payroll_approvals/{approvalId} {
       allow read: if isStaff();
@@ -254,7 +261,17 @@ service cloud.firestore {
       allow create: if (isSystemAdmin() || isPayrollAdmin())
         && request.resource.data.status == 'issued'
         && request.resource.data.netCents is int;
-      allow update, delete: if false;   // locked payroll is never editable
+      // v2.8.0: the ONLY update a payslip ever gets is the revoke flip when
+      // its run is reopened. Every money field and the recipient are frozen
+      // (unchanged) — a revoked payslip stays as the audit record, and the
+      // corrected slip is a NEW document issued by re-approving the rebuilt run.
+      allow update: if (isSystemAdmin() || isPayrollAdmin())
+        && resource.data.status == 'issued'
+        && request.resource.data.status == 'revoked'
+        && unchanged('userId') && unchanged('crewId') && unchanged('tripId')
+        && unchanged('grossCents') && unchanged('netCents') && unchanged('deductionCents')
+        && unchanged('employerSscCents') && unchanged('lines');
+      allow delete: if false;   // payslips are never deleted — revoked, not removed
     }
     match /deductions/{recordId} {
       // Phase 5: adjustment entries — visible corrections with reasons.

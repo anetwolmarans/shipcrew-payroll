@@ -474,7 +474,7 @@ export function payrollSummaryReport({ runs = [] }, f = emptyFilters()) {
 /* ================= 8. Statutory contributions ========================== */
 
 export function statutoryContributionsReport({ payslips = [] }, f = emptyFilters()) {
-  let list = [...payslips];
+  let list = [...payslips].filter(p => p.status !== 'revoked');   // reopened runs: only live payslips
   if (f.tripId) list = list.filter(p => p.tripId === f.tripId);
   if (f.crewId) list = list.filter(p => p.crewId === f.crewId);
   if (f.dateFrom || f.dateTo) list = list.filter(p => inDateRange(p.payDate ? `${p.payDate}T12:00:00+02:00` : p.createdAt, f.dateFrom, f.dateTo));
@@ -538,7 +538,7 @@ export function statutoryContributionsReport({ payslips = [] }, f = emptyFilters
 /* ================= 9. Payslip register ================================= */
 
 export function payslipRegisterReport({ payslips = [], trips = [] }, f = emptyFilters()) {
-  let list = [...payslips];
+  let list = [...payslips].filter(p => p.status !== 'revoked');   // reopened runs: only live payslips
   if (f.tripId) list = list.filter(p => p.tripId === f.tripId);
   if (f.crewId) list = list.filter(p => p.crewId === f.crewId);
   if (f.vesselId) {

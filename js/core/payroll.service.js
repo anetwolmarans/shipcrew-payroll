@@ -39,7 +39,7 @@
  * ALL MONEY IS COMPUTED IN CENTS (integers) so totals never drift by
  * rounding; it is displayed as N$ only at the last moment.
  */
-import { get, getAll, put, STORES } from './idb.js';
+import { get, getAll, put, del, STORES } from './idb.js';
 import { nowISO, localDateKey } from './time.js';
 import { uuid } from './security.js';
 import { SYNC_STATUS, APP } from '../config.js';
@@ -756,7 +756,7 @@ export async function buildTripRun(tripId, { commissionPricePerKg } = {}) {
   const trip = await get(STORES.TRIPS, tripId);
   if (!trip) throw new Error('Trip not found.');
   const existing = (await getAll(STORES.PAYROLL_CALCULATIONS)).find(r => r.tripId === tripId && r.status !== 'draft');
-  if (existing) throw new Error(`A payroll for trip ${trip.reference} already exists in status "${existing.status}". Locked payrolls are never recalculated — use an adjustment entry on a later run instead.`);
+  if (existing) throw new Error(`A payroll for trip ${trip.reference} already exists in status "${existing.status}". To correct it: reopen the run on the Payroll screen (admins, reason recorded) and rebuild, or use an adjustment entry on a later run — locked payrolls are never recalculated in place.`);
 
   const runDateKey = localDateKey(nowISO());
   const hoursSettings = await getHoursSettings();
@@ -846,6 +846,12 @@ export async function buildTripRun(tripId, { commissionPricePerKg } = {}) {
   }
   if (price && quota?.none) warnings.push('No active quota allocation for this trip — commission not calculated. Create one on the Catch & Quota screen.');
 
+  // One draft per trip: replace any earlier draft (left over, or produced by
+  // a reopen) so rebuilding never piles up duplicate draft runs.
+  for (const d of await getAll(STORES.PAYROLL_CALCULATIONS)) {
+    if (d.tripId === tripId && d.status === 'draft') await del(STORES.PAYROLL_CALCULATIONS, d.id);
+  }
+
   const record = {
     id: uuid(),
     tripId, tripRef: trip.reference, vesselId: trip.vesselId, vesselName: trip.vesselName,
@@ -883,7 +889,9 @@ export async function approveRun(runId, { note } = {}) {
   // rules can enforce "crew read only their own" (payslips/{id}.userId).
   const slips = [];
   for (const p of run.payslips) {
-    const dupe = (await getAll(STORES.PAYSLIPS)).find(s => s.crewId === p.crewId && s.tripId === run.tripId);
+    // Reopened runs re-issue payslips: a REVOKED payslip for the same
+    // crew member + trip does not block the corrected one.
+    const dupe = (await getAll(STORES.PAYSLIPS)).find(s => s.crewId === p.crewId && s.tripId === run.tripId && s.status !== 'revoked');
     if (dupe) { slips.push(dupe); continue; }
     const crew = await get(STORES.CREW, p.crewId);
     const slip = {
@@ -920,6 +928,54 @@ export async function approveRun(runId, { note } = {}) {
   await persistRun(run, AUDIT_ACTIONS.PAYROLL_APPROVED,
     `Payroll for trip ${run.tripRef} approved and locked by ${who.name}. ${slips.length} payslip(s) issued. Note: ${note}`);
   return { run, slips };
+}
+
+/**
+ * REOPEN a locked payroll run (payroll_admin / system_admin). The user-facing
+ * answer to "the payslip is locked — how do I correct it now?":
+ *
+ * PLAIN ENGLISH: a locked payroll is never rewritten in place — that would
+ * destroy the audit trail. Reopening instead does three visible things:
+ *   1. every payslip issued by this run is marked REVOKED (crew members stop
+ *      seeing it; the money fields stay frozen forever as the audit record),
+ *   2. the run goes back to DRAFT, so it can be rebuilt (fresh recompute)
+ *      and re-approved — issuing corrected payslips,
+ *   3. the reason is recorded in the run's approval history and the audit
+ *      log. Rebuilds replace the draft (one draft per trip), and re-approval
+ *      skips revoked payslips when issuing the corrected ones.
+ */
+export async function reopenRun(runId, { note } = {}) {
+  const who = sessionBrief();
+  const run = await get(STORES.PAYROLL_CALCULATIONS, runId);
+  if (!run) throw new Error('Payroll run not found.');
+  if (run.status !== 'locked') throw new Error('Only locked payrolls can be reopened.');
+  if (!note || !String(note).trim()) throw new Error('A reason is required to reopen a locked payroll.');
+  const reason = String(note).trim();
+
+  // 1. Revoke the payslips this run issued (money fields stay untouched).
+  const slips = await getAll(STORES.PAYSLIPS);
+  let revoked = 0;
+  for (const s of slips) {
+    if (s.runId !== runId || s.status === 'revoked') continue;
+    s.status = 'revoked';
+    s.revokedAt = nowISO();
+    s.revokedReason = reason;
+    s.updatedAt = nowISO(); s.updatedBy = who.name;
+    await put(STORES.PAYSLIPS, s);
+    queueForSync(s, 'payslips', 'payslip').catch(() => {});
+    revoked++;
+  }
+
+  // 2. Back to draft — rebuildable, re-approvable.
+  run.status = 'draft';
+  run.reopenedAt = nowISO();
+  run.reopenedBy = who.name;
+  run.reopenReason = reason;
+  run.approvalHistory.push({ at: nowISO(), by: who.name, role: who.role, note: reason, action: 'reopened — payslips revoked' });
+  run.updatedAt = nowISO(); run.updatedBy = who.name;
+  await persistRun(run, AUDIT_ACTIONS.PAYROLL_REOPENED,
+    `Locked payroll for trip ${run.tripRef} REOPENED by ${who.name}: ${revoked} payslip(s) revoked. Reason: ${reason}`);
+  return { run, revoked };
 }
 
 /** Adjustment entry: a visible correction on a LATER run — never edits history. */
@@ -968,7 +1024,9 @@ export async function listPayslips(crewId) {
 export async function myPayslips(userId) {
   const crew = (await getAll(STORES.CREW)).find(c => c.userId === userId);
   if (!crew) return [];
-  return listPayslips(crew.id);
+  // Revoked payslips (a reopened run) are hidden from the crew member —
+  // the corrected slip replaces them after re-approval.
+  return listPayslips(crew.id).filter(s => s.status !== 'revoked');
 }
 
 /** Pending adjustments for a trip (shown on the run review + payslip views). */

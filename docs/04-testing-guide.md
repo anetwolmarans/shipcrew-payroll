@@ -269,12 +269,15 @@ Sign in as **System Administrator** (`admin@shipcrew.demo` / `Admin@2026`) or **
 | # | Do this | You should see |
 |---|---|---|
 | X1 | **Approve & lock** with a note | Requires a note; on confirm: status **approved + locked**, and the payslip is issued |
-| X2 | Try **Build payroll** on TRP-2026-013 again | Blocked: "A payroll … already exists in status 'locked'. Locked payrolls are never recalculated — use an adjustment entry on a later run instead." |
+| X2 | Try **Build payroll** on TRP-2026-013 again | Blocked: "A payroll … already exists in status 'locked'. To correct it: reopen the run on the Payroll screen (admins, reason recorded) and rebuild, or use an adjustment entry…" |
 | X3 | Admin → **Payslips** | The issued payslip listed with trip, gross − deductions, net, **View** and **PDF** buttons |
 | X4 | Press **PDF** | A real PDF downloads (works offline), print-ready: navy company header, EMPLOYEE + PAY PERIOD cards (the employee card shows the **signed-contract reference**), worked-time boxes, EARNINGS + DEDUCTIONS tables with every line and its calculation, NET PAY band, employer SSC in its own box, footer with payslip ID |
 | X5 | Sign out → sign in as **Crew Member (Frans)** (`crew1@shipcrew.demo` / `Crew@2026`) | "My payslips" shows TRP-2026-013 with **Net N$287,067.06** and **View / PDF / Query** buttons — and nothing else; Selma sees none of Frans's payslips |
 | X6 | (As admin) Review → **Adjustment entry** on the locked trip | Records a visible correction (deduction or earning) with a mandatory reason — history is never rewritten |
-| X7 | Audit Log | New actions: `contract_created`, `payroll_drafted`, `payroll_approved`, `adjustment_added` — each with who, when, what |
+| X7 | Audit Log | New actions: `contract_created`, `payroll_drafted`, `payroll_approved`, `payroll_reopened`, `adjustment_added` — each with who, when, what |
+| X8 | **Reopen** the locked run (v2.8.0): Reopen button on the run row or in the review modal | A reason is required; on confirm the run returns to **draft** with a "reopened — rebuild & re-approve" hint, and the trip is buildable again |
+| X9 | After reopening, open **Payslips** | The superseded payslip shows a **revoked** badge with the recorded reason; the crew member's "My payslips" no longer lists it |
+| X10 | **Build payroll** again and re-approve | One draft per trip (the reopened draft is replaced); re-approval issues the **corrected** payslip — the revoked one stays as the audit record |
 
 ## Y. Payslip queries — the dispute loop (v2.4.0)
 

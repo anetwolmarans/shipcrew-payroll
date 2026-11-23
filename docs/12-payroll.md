@@ -105,14 +105,37 @@ Three types, each effective-dated with full history:
 4. **Approve & lock** (a note is required). This:
    - issues one **payslip per crew member** (visible on their phone),
    - locks the run **forever** — no recalculation, no edits.
-5. **Corrections** after locking never rewrite history: record an
-   **Adjustment entry** (earning or deduction, with a mandatory reason);
-   it settles on the next run. Adjustments are listed on the review screen.
+5. **Corrections** after locking never rewrite history. Two routes:
+   an **Adjustment entry** (earning or deduction, with a mandatory reason)
+   settles on the crew member's next run, or — when the whole run is wrong —
+   an admin can **reopen** it (see below). Adjustments are listed on the
+   review screen.
 
 **Duplicate prevention:** one payslip per crew member per trip, ever. A
-locked trip refuses a second run with a clear message. The same protections
-run again in the Firestore security rules (Phase 5 rules deployed with this
-version — see `rules/firestore.rules`).
+locked trip refuses a second run with a clear message (pointing at reopen /
+adjustments). The same protections run again in the Firestore security rules
+(`rules/firestore.rules` — **v2.8.0 rules must be redeployed** to allow the
+reopen transition in Firestore-backed environments; the app itself works
+offline-first either way).
+
+### Reopening a locked payroll (v2.8.0)
+
+"Once it's locked, how do I fix it?" — the run itself is never edited in
+place. **Reopen** (Payroll screen, locked runs; admins with the approve
+capability, reason required) does three visible things:
+
+1. **Revokes the issued payslips** — crew members stop seeing them; the
+   money fields stay frozen forever and the revoked slips remain on the
+   Payslips screen as the audit record (badge + reason).
+2. **Puts the run back to draft** — the trip becomes buildable again; the
+   fresh rebuild replaces the draft (one draft per trip).
+3. **Records the reason** in the run's approval history and the audit log
+   (`payroll_reopened`).
+
+Re-approving the rebuilt run then issues corrected payslips; a re-approval
+skips revoked payslips when issuing. Crew members never see a revoked slip —
+the corrected one replaces it. Reports (statutory contributions, payslip
+register, queries) exclude revoked payslips automatically.
 
 ## 4. Payslips (PDF, offline)
 
@@ -129,6 +152,10 @@ version — see `rules/firestore.rules`).
   (the employer SSC, shown separately because it is NOT deducted from pay —
   a legal payslip requirement). The footer records which app version
   generated it and the payslip ID.
+- If a run was **reopened**, its superseded payslips stay listed on the
+  Payslips screen with a **revoked** badge and the recorded reason — the
+  corrected payslip is a new record, and the crew member sees only the
+  corrected one.
 - The PDF is generated **on the device** by the app itself
   (`js/core/payslip-pdf.js` — no internet, no external library). It prints
   on A4 and can be shared from the phone.

@@ -26,7 +26,7 @@ export async function render(root, ctx) {
       const run = runById.get(s.runId);
       return `
       <tr>
-        <td class="cell-strong">${esc(s.crewName)}<div class="text-xs text-muted">${esc(s.position || '')} · ${esc(s.crewId)}</div></td>
+        <td class="cell-strong">${esc(s.crewName)}${s.status === 'revoked' ? ' <span class="badge badge-danger">revoked</span>' : ''}<div class="text-xs text-muted">${esc(s.position || '')} · ${esc(s.crewId)}</div>${s.status === 'revoked' ? `<div class="text-xs text-muted">revoked ${esc(fmtDate(s.revokedAt))} — ${esc(s.revokedReason || '')}</div>` : ''}</td>
         <td class="text-small">${esc(s.tripRef)}<div class="text-xs text-muted">${esc(s.vesselName || '')}</div></td>
         <td class="text-small">${esc(fmtDate(s.createdAt))}</td>
         <td class="text-small">${esc(fmtMoneyCents(s.grossCents))}<div class="text-xs text-muted">− ${esc(fmtMoneyCents(s.deductionCents))}</div></td>
