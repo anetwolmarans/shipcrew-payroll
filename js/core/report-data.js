@@ -490,14 +490,15 @@ export function statutoryContributionsReport({ payslips = [] }, f = emptyFilters
     C.money('taxable', 'Taxable (N$)'),
     C.money('paye', 'PAYE (N$)'),
     C.money('sscEmployee', 'SSC employee 0.9% (N$)'),
-    C.money('sscEmployer', 'SSC employer 0.9% (N$)')
+    C.money('sscEmployer', 'SSC employer 0.9% (N$)'),
+    C.money('sscInsurable', 'SSC basic-pay basis (N$)')
   ];
   const rows = list.map(p => ({
     tripRef: s(p.tripRef),
     crewName: s(p.crewName),
     payDate: p.payDate || null,
     taxable: null,           // filled below from run lines (payslip carries taxable via lines snapshot? falls back to gross − SSC)
-    paye: null, sscEmployee: null, sscEmployer: null,
+    paye: null, sscEmployee: null, sscEmployer: null, sscInsurable: null,
     _p: p
   }));
   // Statutory figures live on the run's payslip lines; PAYSLIPS records keep
@@ -512,6 +513,12 @@ export function statutoryContributionsReport({ payslips = [] }, f = emptyFilters
     r.paye = paye / 100;
     r.sscEmployee = sscEe / 100;
     r.sscEmployer = (Number(p.employerSscCents) || 0) / 100;
+    // The month's basic-pay basis this payslip was charged on. Payslips from
+    // v2.7.0 on store it; older ones are reconstructed from the employer
+    // share (basis = employer ÷ 0.9%), which is exact after clamping.
+    const basis = p.sscInsurableCents != null ? Number(p.sscInsurableCents) || 0
+      : Math.round(((Number(p.employerSscCents) || 0)) / 0.009);
+    r.sscInsurable = basis / 100;
     delete r._p;
   }
   const filters = [];
@@ -522,9 +529,9 @@ export function statutoryContributionsReport({ payslips = [] }, f = emptyFilters
     columns, rows,
     totals: {
       label: `Totals — ${rows.length} payslip${rows.length === 1 ? '' : 's'}`,
-      taxable: sum('taxable'), paye: sum('paye'), sscEmployee: sum('sscEmployee'), sscEmployer: sum('sscEmployer')
+      taxable: sum('taxable'), paye: sum('paye'), sscEmployee: sum('sscEmployee'), sscEmployer: sum('sscEmployer'), sscInsurable: sum('sscInsurable')
     },
-    meta: baseMeta('Statutory contributions — PAYE & SSC', 'Employee and employer contributions per payslip (SSC employer is paid on top, never deducted)', filters)
+    meta: baseMeta('Statutory contributions — PAYE & SSC', 'Per payslip: PAYE, SSC employee (deducted) and SSC employer (paid on top), with the basic-pay basis SSC was charged on — 0.9% each side of the month\u2019s basic salary, N$500 floor, monthly ceiling per SSC notice', filters)
   };
 }
 

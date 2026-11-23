@@ -13,8 +13,12 @@
  *      implemented in this file ONLY because each has been verified against
  *      its official source (see docs/12-payroll.md):
  *        - PAYE (Income Tax Act 1981 as amended; 2026/27 tables, NamRA/PwC)
- *        - SSC  (Social Security Act 1994: 0.9% employee + 0.9% employer,
- *                monthly ceiling N$12,500 from 1 Sep 2026 — N$11,000 before)
+ *        - SSC  (Social Security Act 1994: 0.9% employee + 0.9% employer of
+ *                BASIC salary — ordinary hours, night-work hours at the basic
+ *                rate and days at sea; premiums, allowances and commission are
+ *                not basic salary. Floor N$500 and ceiling N$12,500/month from
+ *                1 Sep 2026 (N$11,000 before) apply PER CALENDAR MONTH across
+ *                all of a crew member's runs — see sscForRunCents)
  *        - Overtime 1.5×, Sunday 2×, public holiday 2× (Labour Act, 2007,
  *          s17(2), s21(5), s22(7))
  *        - Night work +6% of the hourly basic wage for 20:00–07:00 (s19(1))
@@ -75,23 +79,63 @@ export const PAYE_TABLES = [
 ];
 
 /**
- * SSC (Maternity, Sick Leave & Death Benefit Fund): 0.9% of insurable
- * earnings from BOTH employee and employer, on monthly basic earnings
- * between the floor and the ceiling. Sources: Social Security Act, 1994;
- * SSC notice — ceiling N$11,000 → N$12,500 from 1 September 2026
- * (max employee contribution N$99.00 → N$112.50 per month).
+ * SSC (Maternity, Sick Leave & Death Benefit Fund): 0.9% of BASIC salary
+ * from BOTH employee and employer, on the month's basic earnings between the
+ * floor and the ceiling. BASIC salary is the wage for ordinary time worked
+ * (ordinary hours, night-work hours at the basic rate, days at sea) —
+ * overtime/Sunday/holiday premiums, allowances and catch commission are
+ * premium pay, not basic salary. Sources: Social Security Act, 1994;
+ * Government Notice No. 236 of 2026 (Government Gazette No. 8975 of 15 July
+ * 2026) — ceiling N$11,000 → N$12,500 from 1 September 2026 (max N$99.00 →
+ * N$112.50 per month each side), and the gazetted schedule that follows:
+ * N$14,000 from 1 Mar 2027, N$15,000 from 1 Mar 2028, N$16,000 from 1 Mar 2029
+ * (payspace.com summary of GN 236/2026; crvanwyk.com; mercans.com).
+ * The floor and ceiling apply PER CALENDAR MONTH — see sscForRunCents().
  */
 export const SSC_RULES = [
   {
     id: 'ssc_2026',
-    label: 'SSC MSD fund — from 1 Sep 2026',
+    label: 'SSC MSD fund — 1 Sep 2026 to 28 Feb 2027',
     effectiveFrom: '2026-09-01',
-    effectiveTo: null,
-    source: 'Social Security Act, 1994 (Act 34 of 1994); SSC contribution ceiling increase announced Aug 2026, effective 1 September 2026 (payspace.com; crvanwyk.com; Informanté)',
+    effectiveTo: '2027-02-28',   // the gazetted N$14,000 ceiling starts 1 Mar 2027
+    source: 'Social Security Act, 1994 (Act 34 of 1994); GN 236 of 2026 in Gazette 8975 — ceiling N$12,500/month from 1 September 2026 (max N$112.50/month per side)',
     employeeRate: 0.009,
     employerRate: 0.009,
-    monthlyFloorCents: 50000,       // N$500 minimum insurable earnings
+    monthlyFloorCents: 50000,       // N$500 minimum insurable earnings (min N$4.50 per side)
     monthlyCeilingCents: 1250000    // N$12,500 maximum insurable earnings
+  },
+  {
+    id: 'ssc_2027',
+    label: 'SSC MSD fund — 1 Mar 2027 to 29 Feb 2028',
+    effectiveFrom: '2027-03-01',
+    effectiveTo: '2028-02-29',   // the gazetted N$15,000 ceiling starts 1 Mar 2028
+    source: 'Gazetted schedule (GN 236 of 2026): ceiling N$14,000/month from 1 March 2027 (max N$126.00 per side)',
+    employeeRate: 0.009,
+    employerRate: 0.009,
+    monthlyFloorCents: 50000,
+    monthlyCeilingCents: 1400000
+  },
+  {
+    id: 'ssc_2028',
+    label: 'SSC MSD fund — 1 Mar 2028 to 28 Feb 2029',
+    effectiveFrom: '2028-03-01',
+    effectiveTo: '2029-02-28',   // the gazetted N$16,000 ceiling starts 1 Mar 2029
+    source: 'Gazetted schedule (GN 236 of 2026): ceiling N$15,000/month from 1 March 2028 (max N$135.00 per side)',
+    employeeRate: 0.009,
+    employerRate: 0.009,
+    monthlyFloorCents: 50000,
+    monthlyCeilingCents: 1500000
+  },
+  {
+    id: 'ssc_2029',
+    label: 'SSC MSD fund — from 1 Mar 2029',
+    effectiveFrom: '2029-03-01',
+    effectiveTo: null,
+    source: 'Gazetted schedule (GN 236 of 2026): ceiling N$16,000/month from 1 March 2029 (max N$144.00 per side)',
+    employeeRate: 0.009,
+    employerRate: 0.009,
+    monthlyFloorCents: 50000,
+    monthlyCeilingCents: 1600000
   },
   {
     id: 'ssc_2025',
@@ -148,7 +192,14 @@ export function payeTableFor(dateKey) {
   return PAYE_TABLES.find(r => ruleCovers(r, dateKey)) || PAYE_TABLES[PAYE_TABLES.length - 1];
 }
 export function sscRuleFor(dateKey) {
-  return SSC_RULES.find(r => ruleCovers(r, dateKey)) || SSC_RULES[0];
+  const covering = SSC_RULES.find(r => ruleCovers(r, dateKey));
+  if (covering) return covering;
+  // No rule covers the date (e.g. a run dated before 1 Mar 2025): use the
+  // LATEST rule that started on or before it — never a future ceiling.
+  const started = SSC_RULES
+    .filter(r => r.effectiveFrom && r.effectiveFrom <= dateKey)
+    .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
+  return started[0] || SSC_RULES[SSC_RULES.length - 1];
 }
 export function labourRatesFor(dateKey) {
   return LABOUR_RATES.find(r => ruleCovers(r, dateKey)) || LABOUR_RATES[0];
@@ -206,6 +257,40 @@ export function sscContributionsCents(monthlyBasicCents, dateKey) {
     insurableCents: insurable,
     employeeCents: Math.round(insurable * rule.employeeRate),
     employerCents: Math.round(insurable * rule.employerRate)
+  };
+}
+
+/**
+ * SSC for ONE RUN inside a calendar month.
+ *
+ * PLAIN ENGLISH: the floor (N$500) and the ceiling (N$12,500 from 1 Sep 2026)
+ * are MONTHLY limits — the contribution is monthly, not per payslip. Fishing
+ * crews often work several trips in one month, each priced as its own run.
+ * This function takes what the crew member has ALREADY been charged this
+ * month (prior runs, supplied by buildTripRun) and charges only the month's
+ * remaining SSC:
+ *   monthInsurable = clamp(monthBasic, floor, ceiling)
+ *   thisRun        = 0.9% × monthInsurable − already charged
+ * So the N$500 minimum is charged once per month (never twice), a crew member
+ * is never charged beyond the monthly ceiling, and a month's several trips
+ * together add up to exactly the same SSC as one monthly payroll would.
+ */
+export function sscForRunCents({ monthBasicCents, priorInsurableCents = 0, priorEmployeeCents = 0, priorEmployerCents = 0, dateKey }) {
+  const rule = sscRuleFor(dateKey);
+  const prior = (v) => Math.max(0, Math.round(Number(v) || 0));
+  const monthInsurable = Math.min(Math.max(monthBasicCents, rule.monthlyFloorCents), rule.monthlyCeilingCents);
+  const monthEmployee = Math.round(monthInsurable * rule.employeeRate);
+  const monthEmployer = Math.round(monthInsurable * rule.employerRate);
+  const priorInsurable = prior(priorInsurableCents);
+  return {
+    ruleId: rule.id,
+    monthInsurableCents: monthInsurable,
+    // The share of the month's insurable earnings THIS run is charged with
+    // (for the payslip's explanatory line). Zero when prior runs already
+    // covered the whole month.
+    insurableCents: Math.max(0, monthInsurable - priorInsurable),
+    employeeCents: Math.max(0, monthEmployee - prior(priorEmployeeCents)),
+    employerCents: Math.max(0, monthEmployer - prior(priorEmployerCents))
   };
 }
 
@@ -468,7 +553,7 @@ function sessionBrief() {
  * Output: a full breakdown — every earning and deduction on its own line,
  * in cents, plus the totals and the inputs used (auditability).
  */
-export function priceCrewTrip({ crew, contract, events, allowances, commissionCents, runDateKey, hoursSettings, quotaLine }) {
+export function priceCrewTrip({ crew, contract, events, allowances, commissionCents, runDateKey, hoursSettings, quotaLine, sscContext = {} }) {
   const labour = labourRatesFor(runDateKey);
   const lines = [];
   let grossCents = 0;
@@ -577,14 +662,42 @@ export function priceCrewTrip({ crew, contract, events, allowances, commissionCe
   }
 
   /* ---- 4. Statutory deductions ---- */
-  // SSC: insurable = basic earnings of the month. For a per-trip run we take
-  // the time-based part (ordinary + premiums) capped by the monthly rule.
-  const basicCents = lines.filter(l => l.kind === 'earning' && /hours|Overtime|Night work \(hours\)|Day at sea/.test(l.label))
+  // SSC (Social Security Act, 1994 — MSD fund): 0.9% employee + 0.9% employer
+  // on the month's BASIC salary. The basic wage for time worked is the
+  // ordinary-hours pay, night-work hours at the basic rate and days at sea;
+  // overtime/Sunday/holiday PREMIUMS, allowances and catch commission are
+  // premium pay, not basic salary, so they stay out of the SSC base.
+  // The N$500 floor and the monthly ceiling apply PER CALENDAR MONTH: prior
+  // runs for the same crew in the same month arrive in sscContext from
+  // buildTripRun, so several trips in one month add up to exactly the monthly
+  // contribution — the minimum is never charged twice and the ceiling is
+  // never exceeded. Fixed-salary crew contribute 0.9% of their monthly
+  // contract rate (charged on the month's first run; later trips add none).
+  const basicCents = lines
+    .filter(l => l.kind === 'earning' && /^(Ordinary hours|Night work \(hours\)|Day at sea)$/.test(l.label))
     .reduce((s, l) => s + l.amountCents, 0);
-  const ssc = sscContributionsCents(basicCents, runDateKey);
+  const ctx = (v) => Math.max(0, Math.round(Number(v) || 0));
+  const priorBasicCents = sscContext.priorBasicCents != null ? ctx(sscContext.priorBasicCents) : ctx(sscContext.priorInsurableCents);
+  const priorInsurableCents = ctx(sscContext.priorInsurableCents);
+  const isFixedSalary = contract?.type === 'fixed_salary';
+  const fixedRateCents = Math.max(0, Number(contract?.rateCents) || 0);
+  // What THIS run adds to the month's basic salary: its basic wage, or — for
+  // fixed salary — the monthly rate the first time it is charged this month.
+  const addedBasicCents = isFixedSalary ? Math.max(0, fixedRateCents - priorBasicCents) : basicCents;
+  const monthBasicCents = priorBasicCents + addedBasicCents;
+  const ssc = sscForRunCents({
+    monthBasicCents,
+    priorInsurableCents,
+    priorEmployeeCents: ctx(sscContext.priorEmployeeCents),
+    priorEmployerCents: ctx(sscContext.priorEmployerCents),
+    dateKey: runDateKey
+  });
   const deductions = [];
   if (ssc.employeeCents > 0) {
-    deductions.push({ key: 'ssc_employee', label: 'SSC (employee 0.9%)', amountCents: ssc.employeeCents, statutory: true });
+    deductions.push({
+      key: 'ssc_employee', label: 'SSC (employee 0.9%)', amountCents: ssc.employeeCents, statutory: true,
+      detail: `0.9% of ${fmtMoneyCents(ssc.insurableCents)} basic pay this month (month basis ${fmtMoneyCents(ssc.monthInsurableCents)})`
+    });
   }
 
   // PAYE on taxable = gross − SSC employee (SSC contributions are deductible).
@@ -593,7 +706,7 @@ export function priceCrewTrip({ crew, contract, events, allowances, commissionCe
   if (paye > 0) {
     deductions.push({ key: 'paye', label: 'PAYE (income tax)', amountCents: paye, statutory: true });
   }
-  for (const d of deductions) lines.push({ kind: 'deduction', label: d.label, detail: d.statutory ? 'Statutory' : '', amountCents: d.amountCents });
+  for (const d of deductions) lines.push({ kind: 'deduction', label: d.label, detail: d.detail || (d.statutory ? 'Statutory' : ''), amountCents: d.amountCents });
 
   const deductionCents = deductions.reduce((s, d) => s + d.amountCents, 0);
   const netCents = grossCents - deductionCents;
@@ -609,6 +722,10 @@ export function priceCrewTrip({ crew, contract, events, allowances, commissionCe
     grossCents, deductionCents, netCents,
     employerSscCents: ssc.employerCents,
     sscRuleId: ssc.ruleId,
+    sscBasicCents: addedBasicCents,          // this run's raw addition to the month's basic salary
+    sscInsurableCents: ssc.insurableCents,   // the insurable share charged by THIS run
+    sscMonthInsurableCents: ssc.monthInsurableCents,
+    sscEmployeeCents: ssc.employeeCents,
     payeCents: paye,
     taxableCents
   };
@@ -672,6 +789,34 @@ export async function buildTripRun(tripId, { commissionPricePerKg } = {}) {
     }
   }
 
+  // SSC month-context: the N$500 floor and the monthly ceiling are MONTHLY
+  // limits, so collect what each crew member has ALREADY been charged this
+  // calendar month from their other runs (drafts included — a batch of draft
+  // runs must not double-charge the minimum; the run being built is excluded
+  // so a rebuild never counts itself). Payslips from before v2.7.0 do not
+  // store the basis, so it is reconstructed from the employer share
+  // (insurable = employer ÷ 0.9%) — exact, because the basis is a clean
+  // cent amount after clamping.
+  const monthKey = runDateKey.slice(0, 7);
+  const runsThisMonth = (await getAll(STORES.PAYROLL_CALCULATIONS))
+    .filter(r => r.tripId !== tripId && String(r.runDateKey || '').slice(0, 7) === monthKey);
+  const priorSscForCrew = (crewId) => {
+    let basic = 0, insurable = 0, employee = 0, employer = 0;
+    for (const r of runsThisMonth) {
+      for (const p of (r.payslips || [])) {
+        if (p.crewId !== crewId) continue;
+        const ee = p.sscEmployeeCents != null ? Number(p.sscEmployeeCents) || 0
+          : ((p.lines || []).find(l => l.kind === 'deduction' && String(l.label).startsWith('SSC'))?.amountCents) || 0;
+        const er = Number(p.employerSscCents) || 0;
+        const ins = p.sscInsurableCents != null ? Number(p.sscInsurableCents) || 0
+          : (er ? Math.round(er / 0.009) : (ee ? Math.round(ee / 0.009) : 0));
+        basic += p.sscBasicCents != null ? Number(p.sscBasicCents) || 0 : ins;
+        insurable += ins; employee += ee; employer += er;
+      }
+    }
+    return { priorBasicCents: basic, priorInsurableCents: insurable, priorEmployeeCents: employee, priorEmployerCents: employer };
+  };
+
   const payslips = [];
   const warnings = [];
   for (const crewId of crewIds) {
@@ -693,7 +838,8 @@ export async function buildTripRun(tripId, { commissionPricePerKg } = {}) {
     }
     const slip = priceCrewTrip({
       crew, contract, events: crewEvents, allowances,
-      commissionCents, runDateKey, hoursSettings, quotaLine
+      commissionCents, runDateKey, hoursSettings, quotaLine,
+      sscContext: priorSscForCrew(crewId)
     });
     if (quotaLine) slip.quotaLine = quotaLine;
     payslips.push(slip);
@@ -753,6 +899,11 @@ export async function approveRun(runId, { note } = {}) {
       lines: p.lines, hourCategories: p.hourCategories,
       grossCents: p.grossCents, deductionCents: p.deductionCents, netCents: p.netCents,
       employerSscCents: p.employerSscCents,
+      sscRuleId: p.sscRuleId || null,
+      sscBasicCents: p.sscBasicCents ?? null,
+      sscInsurableCents: p.sscInsurableCents ?? null,
+      sscMonthInsurableCents: p.sscMonthInsurableCents ?? null,
+      sscEmployeeCents: p.sscEmployeeCents ?? null,
       status: 'issued',
       createdAt: nowISO(), createdBy: who.name,
       updatedAt: nowISO(), updatedBy: who.name,

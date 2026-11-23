@@ -249,7 +249,7 @@ Sign in as **System Administrator** (`admin@shipcrew.demo` / `Admin@2026`) or **
 | V1 | Admin → **Contracts** (new Payroll menu group) | Both crew members with their contracts: Frans "Hourly rate N$28.50/hour · signed HR/CONTRACTS/2026/027", Selma "Daily rate N$245.00/day at sea · signed HR/CONTRACTS/2026/031", implied rates N$28.50 and ≈N$30.63 per hour |
 | V2 | **New version** on Frans → try rate **15.00** | Blocked: "The hourly rate is below the national minimum wage (N$18.00/hour…)" — illegal rates are refused |
 | V3 | New version with rate **30.00**, effective tomorrow, reason "Annual increase", signed-on date + reference (e.g. HR/CONTRACTS/2026/041) | Saved; the list shows the new rate and its signed reference; **View** shows BOTH versions with periods, signed references, reasons and status (active/superseded). (The signed PAPER contract stays in your HR file — the app records its pay terms + reference, so payslips point back to the signed original.) |
-| V4 | Statutory Rules screen | The payroll rules now show **verified & implemented** with real values: PAYE bands, SSC 0.9%/0.9% with the N$12,500 ceiling, Labour Act multipliers, N$18.00 minimum wage, fishers' regs |
+| V4 | Statutory Rules screen | The payroll rules now show **verified & implemented** with real values: PAYE bands, SSC 0.9%/0.9% with the gazetted ceiling schedule (N$12,500 from 1 Sep 2026, N$14,000/2027, N$15,000/2028, N$16,000/2029), Labour Act multipliers, N$18.00 minimum wage, fishers' regs |
 
 ## W. Building a payroll run
 
@@ -261,6 +261,8 @@ Sign in as **System Administrator** (`admin@shipcrew.demo` / `Admin@2026`) or **
 | W4 | Open the **Payslip** detail | Every earning and deduction on its own line **with its calculation** (e.g. "0h13 × N$28.50/h × 1.5"); Catch commission ≈ N$436,275.00 = 48,475 kg × N$9.00 |
 | W5 | Verify a number by hand | PAYE ≈ N$149,481.18: monthly taxable ≈ N$436,548.24 × 12 = N$5.24M/year → top band: 429,000 + 37% above 1.55M, ÷ 12 |
 | W6 | Rebuild the draft (same trip) | Allowed while draft — the draft is replaced, never duplicated |
+| W7 | Open the payslip's **SSC deduction line** (v2.7.0) | The detail states the basis: "0.9% of N$X basic pay this month (month basis N$Y)" — X is the ordinary-hours/night-hours/day-at-sea pay only, never overtime or commission |
+| W8 | If two payroll-ready trips fall in one month, build and approve both | The SSC floor/ceiling are shared: the second run's SSC line shows only the month's remaining contribution (the demo normally has one ready trip, so a second is only available once another trip closes) |
 
 ## X. Approval, locking, payslips and adjustments
 
@@ -300,7 +302,7 @@ Run these in **demo mode** first (the demo data has crew, trips, hours and a pay
 | Z5 | Press **CSV** and open in a text editor | Title block, filter line, header, rows, totals — money with no thousand separators, no stray commas |
 | Z6 | Select **Catch register** → no filters → build | Every catch record with species, category, weight, paperwork refs; totals row shows the total kg; matches the Catch & Quota screen |
 | Z7 | Select **Payroll summary** → build | One line per payslip across runs (draft runs marked), gross / PAYE / SSC / net columns with the correct totals; matches the Payroll screen |
-| Z8 | Select **Statutory contributions** → build | Taxable, PAYE, SSC employee and employer per payslip — the figures an accountant needs for NamRA and SSC |
+| Z8 | Select **Statutory contributions** → build | Taxable, PAYE, SSC employee and employer **and the basic-pay SSC basis** per payslip — the figures an accountant needs for NamRA and SSC |
 | Z9 | Select **Audit trail report** → filter by today | Today's actions newest first |
 | Z10 | Sign out → sign in as **Vessel Manager** → Reports | Payroll group is hidden (no payroll reports); operations reports build fine |
 | Z11 | Sign in as **Supervisor** → open any report → build it | The table builds on screen; export buttons show a note that exports are limited to payroll/management/auditor roles |

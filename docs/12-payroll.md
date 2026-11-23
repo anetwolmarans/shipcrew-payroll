@@ -30,7 +30,7 @@ calculation code was written. The verification trail lives in the app
 |---|---|---|
 | **PAYE** — income tax | 0% on the first N$100,000/year; 18% to 150k; 25% to 350k; 28% to 550k; 30% to 850k; 32% to 1.55M; 37% above | Income Tax Act, 1981 as amended — 2026/27 tables (NamRA; PwC Namibia Tax Reference and Rate Card 2026) |
 | PAYE method | Monthly deduction = annual tax on (12 × the month's taxable pay) ÷ 12 | NamRA employer method — seasonal months even out over the year |
-| **SSC** (Maternity, Sick & Death fund) | 0.9% employee + 0.9% employer on monthly basic earnings of N$500–N$12,500 (max N$112.50 each side) | Social Security Act, 1994; SSC ceiling increase effective 1 Sep 2026 (was N$11,000 / max N$99.00) |
+| **SSC** (Maternity, Sick & Death fund) | 0.9% employee + 0.9% employer of **basic salary** — the month's basic wage (ordinary hours, night-work hours at the basic rate, days at sea; premiums/allowances/commission are not basic salary) — floored at N$500 and capped at the monthly ceiling (N$12,500 from 1 Sep 2026; was N$11,000 / max N$99.00). Floor and ceiling apply **per calendar month** across all of a crew member's runs. | Social Security Act, 1994; GN 236 of 2026 (Gazette 8975): N$12,500 from 1 Sep 2026, N$14,000 from 1 Mar 2027, N$15,000 from 1 Mar 2028, N$16,000 from 1 Mar 2029 (all pre-loaded in `SSC_RULES`) |
 | **Overtime** | ×1.5 the hourly basic wage | Labour Act, 2007, s17(2) |
 | **Sunday work** | ×2 the hourly basic wage | Labour Act, 2007, s21(5) |
 | **Public-holiday work** | ×2 the hourly basic wage | Labour Act, 2007, s22(7) |
@@ -95,7 +95,10 @@ Three types, each effective-dated with full history:
    - prices each crew member's hours with their contract,
    - adds allowances recorded for the trip,
    - pays each person's **quota share × price** as commission,
-   - deducts SSC (0.9%, capped) and PAYE (annualise method),
+   - deducts SSC (0.9% of the month's **basic salary** — the N$500 floor and
+     the monthly ceiling are shared across every run the person has in that
+     month, so several trips never double-charge the minimum or exceed the
+     ceiling) and PAYE (annualise method),
    - produces a **draft** run with a full line-by-line breakdown.
 3. **Review**: open any payslip — every earning and deduction is a separate
    line with its calculation shown (e.g. "0h13 × N$28.50/h × 1.5").

@@ -1,6 +1,6 @@
 # Guide 6 — The Roadmap
 
-The system is delivered in six tested phases. Nothing is skipped; every phase is verified before the next starts. This build = **all six phases complete** (v2.5.0). A v2.5.1 hotfix corrected the payroll-screen button rendering and added a locked-trip guard; **v2.6.0 adds bulk crew import** (Crew → Bulk import: paste or upload a CSV, validate, preview, create). v2.6.1 makes the import template downloadable by every role (Crew → Import template).
+The system is delivered in six tested phases. Nothing is skipped; every phase is verified before the next starts. This build = **all six phases complete** (v2.5.0). A v2.5.1 hotfix corrected the payroll-screen button rendering and added a locked-trip guard; **v2.6.0 adds bulk crew import** (Crew → Bulk import: paste or upload a CSV, validate, preview, create). v2.6.1 makes the import template downloadable by every role (Crew → Import template). **v2.7.0 corrects the SSC engine** — basic-salary base (premiums excluded), monthly floor/ceiling shared across runs, fixed-salary crew charged on their monthly rate, gazetted ceiling schedule to 2029 pre-loaded, SSC basis shown on payslips and in the statutory report.
 
 | Phase | What it delivers | Status |
 |---|---|---|
