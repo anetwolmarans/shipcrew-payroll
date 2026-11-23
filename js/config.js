@@ -8,7 +8,7 @@ export const APP = {
   name: 'ShipCrew Payroll',
   shortName: 'ShipCrew',
   tagline: 'Fishing fleet payroll — Namibia',
-  version: '2.5.1',
+  version: '2.6.0',
   buildPhase: 6,          // Which development phase this build belongs to (see docs/06-roadmap.md)
   totalPhases: 6,
   country: 'Namibia',
@@ -19,7 +19,7 @@ export const APP = {
 };
 
 /** Service worker cache version. Bump this whenever app files change (see docs/03-deployment). */
-export const SW_VERSION = 'shipcrew-v2.5.1-phase6';
+export const SW_VERSION = 'shipcrew-v2.6.0-bulkimport';
 
 /** Firebase JS SDK version pinned in index.html import map (keep in sync). */
 export const FIREBASE_SDK_VERSION = '13.2.0';

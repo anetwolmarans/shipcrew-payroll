@@ -311,6 +311,23 @@ Run these in **demo mode** first (the demo data has crew, trips, hours and a pay
 | Z16 | The export for a 500-row report | On screen you see the first 300 rows with a note; the downloaded file contains ALL rows (check the PDF/Excel row count) |
 | Z17 | Work through **docs/14-security-review.md** | Every table ticked; sign-off completed for production |
 
+## AA. Bulk crew import (v2.6.0)
+
+Load many employees at once instead of typing them one by one. Payroll & System administrators only.
+
+| # | Do this | You should see |
+|---|---|---|
+| AA1 | Sign in as Payroll Administrator → **Crew** → **Bulk import** | The import panel: explanation, **Download template CSV**, **Choose CSV file**, a paste box, **Check rows**, and a disabled **Import** button |
+| AA2 | Press **Download template CSV** and open it | A CSV with the heading row and three clearly-fake example rows |
+| AA3 | Paste a list with: a row with an employee number that already exists (e.g. NAF-0027), a row with no name, a repeated name, a nonsense date (31/02/2026), a vessel that is not in the fleet, and two good rows (one with a blank employee number) → **Check rows** | Preview table: good rows marked **OK**, bad rows **Error** with the reason ("already exists", "Full name is required", "appears twice"); the impossible date and unknown vessel are warnings, not errors; the blank employee number shows the next free **NAF-####** |
+| AA4 | Press **Import 2 rows** (or however many are OK) | Progress on the button, then a summary banner "N crew members created"; the register behind the modal now includes them |
+| AA5 | Close the modal → search for a newly imported name | The row shows name, position, vessel, status — exactly as the CSV said |
+| AA6 | **Audit Log** | A `crew_created` entry for every imported person (same as typing them by hand) |
+| AA7 | Sign in as Vessel Manager → Crew | There is **no** Bulk import button (manage permission required) |
+| AA8 | Import the same file twice | The second run flags every row "Employee number … already exists in the register — it will NOT be overwritten" |
+| AA9 | Try to choose a `.xlsx` file | The file picker filters to CSV/TXT; if a spreadsheet is forced in anyway, **Check rows** reports a parse error — save the sheet as "CSV (comma-separated)" first |
+| AA10 | In Excel: put a comma inside a name ("Namene, Maria"), wrap the cell in quotes, paste → Check | The comma stays inside the name field |
+
 ## When every box ticks (all six phases — final sign-off)
 
 Congratulations — the system is complete: registers, clocking, offline sync, automatic hour categories, catch & quota, verified payroll with locked runs and PDF payslips, the dispute loop, and now the full report library with PDF/Excel/CSV exports and the production security review. With section **Z** ticked and docs/14 signed, tell your developer **"Phase 6 approved — go live"** and follow docs/14 section 5 (deployment checklist) to switch the production copy to the live Firebase project.

@@ -1,6 +1,6 @@
 # Guide 6 — The Roadmap
 
-The system is delivered in six tested phases. Nothing is skipped; every phase is verified before the next starts. This build = **all six phases complete** (v2.5.1 — hotfix: payroll button rendering & locked-trip guard).
+The system is delivered in six tested phases. Nothing is skipped; every phase is verified before the next starts. This build = **all six phases complete** (v2.5.0). A v2.5.1 hotfix corrected the payroll-screen button rendering and added a locked-trip guard; **v2.6.0 adds bulk crew import** (Crew → Bulk import: paste or upload a CSV, validate, preview, create).
 
 | Phase | What it delivers | Status |
 |---|---|---|

@@ -12,13 +12,16 @@
  *    are only shown to those same two roles — never inside the crew list.
  */
 import { renderAdminShell } from './layout.js';
-import { icon, esc, avatarInitials, openModal, toast } from '../../core/ui.js';
+import { icon, esc, avatarInitials, openModal, toast, downloadFile } from '../../core/ui.js';
 import * as ops from '../../core/operations.service.js';
 import * as store from '../../core/store.js';
 import { can, CAPABILITIES } from '../../core/permissions.js';
 import { isFirebaseConfigured } from '../../firebase-config.js';
 import { CREW_POSITIONS, ID_TYPES } from '../../config.js';
 import { fmtDate } from '../../core/time.js';
+import {
+  parseCrewCsv, validateCrewRows, assignAutoNumbers, crewTemplateCsv
+} from '../../core/crew-import.js';
 
 export async function render(root, ctx) {
   const role = ctx.session.role;
@@ -30,7 +33,8 @@ export async function render(root, ctx) {
       <div class="input-wrap" style="max-width:280px">
         <input class="input" id="crew-search" type="search" placeholder="Search name, number, position…">
       </div>
-      ${canManage ? `<button class="btn btn-primary btn-sm" id="add-crew">${icon('plus', 16)} Add crew member</button>` : ''}
+      ${canManage ? `<button class="btn btn-primary btn-sm" id="add-crew">${icon('plus', 16)} Add crew member</button>
+      <button class="btn btn-outline btn-sm" id="bulk-import">${icon('upload', 16)} Bulk import</button>` : ''}
       <span class="text-small text-muted" id="crew-count"></span>
     </div>
     <div id="crew-table"></div>
@@ -213,8 +217,141 @@ export async function render(root, ctx) {
     });
   }
 
+  /* ---------------- Bulk import modal (v2.6.0) ----------------
+     Paste or upload a CSV list → validate → preview → create. Every record
+     goes through ops.createCrew, so permissions, the audit log and the sync
+     queue behave exactly as if it had been typed by hand. Banking details
+     are deliberately NOT importable here — they live in a restricted
+     collection and are entered per person. */
+  function openBulkImportModal() {
+    let checked = null;   // { valid, invalid } from the last "Check rows"
+
+    openModal({
+      title: 'Bulk import crew members', icon: 'upload', wide: true,
+      body: `
+        <div class="banner banner-info">${icon('info', 16)}<div>
+          Paste rows from Excel (or upload a CSV file) — first row must be the column headings.
+          Required: <b>fullName</b>. Optional: <b>employeeNumber</b> (blank rows get an automatic
+          NAF-#### number), position, idType, idNumber, phone, emergencyContact, startDate
+          (YYYY-MM-DD or DD/MM/YYYY), status (active / on_leave / inactive), vessel.
+          Dates as text, no formulas. Banking details are <b>not</b> part of bulk import —
+          add them per person afterwards.
+        </div></div>
+        <div class="row" style="gap:8px;margin:10px 0">
+          <button class="btn btn-outline btn-sm" id="imp-template">${icon('download', 14)} Download template CSV</button>
+          <label class="btn btn-outline btn-sm" style="cursor:pointer">${icon('upload', 14)} Choose CSV file
+            <input id="imp-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none" />
+          </label>
+        </div>
+        <textarea id="imp-text" class="input" rows="9" spellcheck="false"
+          style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.82rem;white-space:pre"
+          placeholder="employeeNumber,fullName,position,phone,vessel&#10;NAF-0101,Tuuliki Amwaama,Cook,+264 81 123 4567,MFV Etosha Bay&#10;,Jonas Shikongo,Deckhand,,MFV Kunene Runner"></textarea>
+        <div class="row" style="gap:8px;margin:10px 0 4px">
+          <button class="btn btn-outline btn-sm" id="imp-check">${icon('eye', 14)} Check rows</button>
+          <button class="btn btn-primary btn-sm" id="imp-go" disabled>${icon('check-circle', 14)} Import 0 rows</button>
+        </div>
+        <div id="imp-preview"></div>`,
+      actions: [
+        { label: 'Close', kind: 'btn-outline' }
+      ]
+    });
+
+    const overlay = document.querySelector('.modal-overlay:last-child');
+    const ta = overlay.querySelector('#imp-text');
+    const previewEl = overlay.querySelector('#imp-preview');
+    const goBtn = overlay.querySelector('#imp-go');
+
+    overlay.querySelector('#imp-template').addEventListener('click', () => {
+      downloadFile('crew-import-template.csv', crewTemplateCsv(), 'text/csv');
+    });
+
+    overlay.querySelector('#imp-file').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) { toast('That file is larger than 2 MB — split it and import in batches.', 'warn', 6000); return; }
+      ta.value = await file.text();
+      toast(`Loaded ${file.name} — now click "Check rows".`, 'success');
+    });
+
+    function paintPreview(result) {
+      const total = result.valid.length + result.invalid.length;
+      const rowHtml = (r, ok) => `
+        <tr>
+          <td class="text-small text-muted">${r.line}</td>
+          <td class="text-small mono">${esc(r.employeeNumber || '—')}</td>
+          <td class="text-small">${esc(r.fullName || '(no name)')}</td>
+          <td class="text-small">${esc(r.position || '—')}</td>
+          <td class="text-small">${esc((vessels.find(v => v.id === r.homeVesselId) || {}).name || '—')}</td>
+          <td>${ok ? '<span class="badge badge-success">OK</span>' : '<span class="badge badge-danger">Error</span>'}</td>
+          <td class="text-xs">${[...(r.errors || []), ...(r.warnings || [])].map(esc).join('<br>') || '—'}</td>
+        </tr>`;
+      previewEl.innerHTML = `
+        <div class="table-wrap" style="max-height:300px;overflow-y:auto"><table class="table">
+          <thead><tr><th>Line</th><th>Employee no</th><th>Name</th><th>Position</th><th>Vessel</th><th>Result</th><th>Notes</th></tr></thead>
+          <tbody>
+            ${result.invalid.map(r => rowHtml(r, false)).join('')}
+            ${result.valid.map(r => rowHtml(r, true)).join('')}
+          </tbody>
+        </table></div>
+        <p class="text-small" style="margin:6px 0 0">
+          <b>${result.valid.length}</b> row${result.valid.length === 1 ? '' : 's'} ready to import ·
+          <b class="text-danger">${result.invalid.length}</b> problem row${result.invalid.length === 1 ? '' : 's'} will be skipped.
+          ${result.invalid.length ? 'Fix them in the list and check again, or import the good rows now.' : ''}
+        </p>`;
+      goBtn.textContent = `Import ${result.valid.length} row${result.valid.length === 1 ? '' : 's'}`;
+      goBtn.disabled = result.valid.length === 0;
+    }
+
+    overlay.querySelector('#imp-check').addEventListener('click', async () => {
+      const parsed = parseCrewCsv(ta.value);
+      if (parsed.parseErrors.length) {
+        previewEl.innerHTML = `<div class="banner banner-warn">${icon('alert', 16)}<div>
+          ${parsed.parseErrors.map(e => `Line ${e.line}: ${esc(e.reason)}`).join('<br>')}</div></div>`;
+        checked = null; goBtn.disabled = true; goBtn.textContent = 'Import 0 rows';
+        return;
+      }
+      const existingIds = new Set((await ops.listCrew()).map(c => String(c.id).toLowerCase()));
+      checked = validateCrewRows(parsed.rows, { existingIds, vessels });
+      checked.valid = assignAutoNumbers(checked.valid, existingIds);
+      paintPreview(checked);
+    });
+
+    goBtn.addEventListener('click', async () => {
+      if (!checked || !checked.valid.length) return;
+      goBtn.disabled = true;
+      const rows = checked.valid;
+      const done = [], failed = [];
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        goBtn.textContent = `Importing… ${i + 1}/${rows.length}`;
+        try {
+          await ops.createCrew({
+            employeeId: r.employeeNumber, fullName: r.fullName, position: r.position,
+            idType: r.idType, idNumber: r.idNumber, phone: r.phone,
+            emergencyContact: r.emergencyContact, startDate: r.startDate,
+            employmentStatus: r.employmentStatus, homeVesselId: r.homeVesselId, userId: null
+          });
+          done.push(r);
+        } catch (err) {
+          failed.push({ name: `${r.fullName} (${r.employeeNumber || 'auto number'})`, reason: err?.message || 'unknown error' });
+        }
+      }
+      await paint();
+      toast(`Bulk import finished: ${done.length} created${failed.length ? `, ${failed.length} failed` : ''}.`, failed.length ? 'warn' : 'success', 6000);
+      previewEl.innerHTML = `
+        <div class="banner ${failed.length ? 'banner-warn' : 'banner-info'}">${icon(failed.length ? 'alert' : 'users', 16)}<div>
+          <b>${done.length} crew member${done.length === 1 ? '' : 's'} created.</b>
+          ${failed.length ? `<br>Failed: ${failed.map(f => `${esc(f.name)} — ${esc(f.reason)}`).join('<br>')}` : 'They now appear in the register below.'}
+        </div></div>`;
+      goBtn.textContent = 'Import 0 rows';
+      checked = null;
+    });
+  }
+
   const addBtn = content.querySelector('#add-crew');
   if (addBtn) addBtn.addEventListener('click', () => openCrewModal(null));
+  const bulkBtn = content.querySelector('#bulk-import');
+  if (bulkBtn) bulkBtn.addEventListener('click', () => openBulkImportModal());
   content.querySelector('#crew-search').addEventListener('input', (e) => paint(e.target.value));
 
   await paint();

@@ -11,7 +11,7 @@
  * AND CACHE_NAME below. Browsers then fetch fresh files and the app offers
  * an "Update & reload" prompt.
  */
-const CACHE_NAME = 'shipcrew-v2.5.1-phase6-fix1';
+const CACHE_NAME = 'shipcrew-v2.6.0-bulkimport';
 
 /* Every file the app needs to start and run (the "app shell"). */
 const PRECACHE = [
@@ -42,6 +42,7 @@ const PRECACHE = [
   './js/core/payroll.service.js',
   './js/core/payslip-pdf.js',
   './js/core/queries.service.js',
+  './js/core/crew-import.js',
   './js/screens/login.screen.js',
   './js/screens/lock.screen.js',
   './js/screens/crew/home.screen.js',
