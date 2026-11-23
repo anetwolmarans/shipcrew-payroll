@@ -1,0 +1,4 @@
+employeeNumber,fullName,position,idType,idNumber,phone,emergencyContact,startDate,status,vessel
+,Example Crew One,Deckhand,Namibian ID,11010100123,+264 81 000 0001,Next of kin — +264 81 000 0011,2026-01-15,active,MFV Etosha Bay
+,Example Crew Two,Cook,Namibian ID,85020200456,+264 81 000 0002,Next of kin — +264 81 000 0012,15/02/2026,active,
+,Example Crew Three,Fish Processing Operator,Other,,+264 81 000 0003,,2026-03-01,inactive,

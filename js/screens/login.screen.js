@@ -79,6 +79,12 @@ export function render(root, ctx) {
             <button type="button" class="btn btn-ghost btn-sm" id="forgot-link">Forgot password?</button>
             <span class="text-xs text-muted">v${APP.version}</span>
           </div>
+          <a class="btn btn-outline btn-sm btn-block" style="margin-top:.7rem"
+             href="./crew-import-template.csv" download
+             title="The CSV column layout for bulk-importing crew — public, no sign-in needed">
+            ${icon('download', 14)} Crew import template (CSV) — no sign-in needed
+          </a>
+          <p class="text-xs text-muted" style="margin:.4rem 0 0">The administrator can bulk-import crew from this file after signing in.</p>
         </form>
 
         ${demo ? `

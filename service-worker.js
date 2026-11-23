@@ -11,13 +11,14 @@
  * AND CACHE_NAME below. Browsers then fetch fresh files and the app offers
  * an "Update & reload" prompt.
  */
-const CACHE_NAME = 'shipcrew-v2.8.1-sscmax';
+const CACHE_NAME = 'shipcrew-v2.8.2-publictemplate';
 
 /* Every file the app needs to start and run (the "app shell"). */
 const PRECACHE = [
   './',
   './index.html',
   './manifest.json',
+  './crew-import-template.csv',
   './offline.html',
   './css/styles.css',
   './js/main.js',
