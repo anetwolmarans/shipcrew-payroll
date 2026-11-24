@@ -18,7 +18,7 @@ import { verifyPassword, uuid, makePasswordRecord } from './security.js';
 import * as store from './store.js';
 import { logAction, AUDIT_ACTIONS } from './audit.service.js';
 import { fbEnsure } from './firebase.service.js';
-import { isFirebaseConfigured, environmentName } from '../firebase-config.js';
+import { isFirebaseConfigured, environmentName, ACTIVE_ENV } from '../firebase-config.js';
 import { DEFAULT_SETTINGS } from '../config.js';
 import { roleLabel, ROLES } from './permissions.js';
 import { emit } from './events.js';
@@ -140,7 +140,9 @@ async function loginLive(email, password) {
   } catch (err) {
     const code = err?.code || '';
     if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
-      throw new Error('Incorrect email or password.');
+      throw new Error(ACTIVE_ENV === 'test'
+        ? 'Incorrect email or password — or no account with that email exists in the Test environment yet. The demo accounts (@shipcrew.demo) live in Demo mode: use the "Use Demo mode" button on the sign-in screen.'
+        : 'Incorrect email or password.');
     }
     if (code === 'auth/network-request-failed') {
       throw new Error('No internet connection. First-time sign-in needs internet once; after that this device can work offline.');

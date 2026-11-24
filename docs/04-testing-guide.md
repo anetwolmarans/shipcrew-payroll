@@ -264,6 +264,8 @@ Sign in as **System Administrator** (`admin@shipcrew.demo` / `Admin@2026`) or **
 | W7 | Open the payslip's **SSC deduction line** (v2.7.0) | The detail states the basis: "0.9% of N$X basic pay this month (month basis N$Y)" — X is the ordinary-hours/night-hours/day-at-sea pay only, never overtime or commission |
 | W8 | If two payroll-ready trips fall in one month, build and approve both | The SSC floor/ceiling are shared: the second run's SSC line shows only the month's remaining contribution (the demo normally has one ready trip, so a second is only available once another trip closes) |
 
+| A98 | On the **Test sign-in screen**: **Trying the app? Use Demo mode (demo accounts)** | Switches to `?env=demo` in one tap; demo accounts appear and sign-in works (v2.8.3) |
+| A98b | In the **Test environment**, enter a demo account (payroll@shipcrew.demo) | Error explains the demo accounts live in Demo mode and points to the button — not a bare "Incorrect email or password" (v2.8.3) |
 | A99 | On the **sign-in screen** (not signed in): **Crew import template (CSV)** | Downloads `crew-import-template.csv` with the 10-column header and three example rows — public, no account needed (v2.8.2); the direct URL `/crew-import-template.csv` also works |
 
 ## X. Approval, locking, payslips and adjustments

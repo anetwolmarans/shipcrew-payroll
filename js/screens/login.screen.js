@@ -5,7 +5,7 @@
  */
 import { login, sendPasswordReset } from '../core/auth.service.js';
 import { getOrCreateDeviceRecord } from '../core/device.service.js';
-import { isFirebaseConfigured, environmentName } from '../firebase-config.js';
+import { isFirebaseConfigured, environmentName, ACTIVE_ENV } from '../firebase-config.js';
 import { DEMO_ACCOUNTS, APP } from '../config.js';
 import { homeFor } from '../core/router.js';
 import { icon, esc, toast, openModal } from '../core/ui.js';
@@ -54,7 +54,7 @@ export function render(root, ctx) {
         </div>
 
         ${demo
-          ? `<div class="banner banner-demo">${icon('alert', 18)}<div><b>Demo mode.</b> No Firebase project is connected yet, so data stays on this device with demo accounts. Never enter real employee data. <b>How to connect: docs/01-firebase-setup.md</b></div></div>`
+          ? `<div class="banner banner-demo">${icon('alert', 18)}<div><b>Demo mode.</b> No Firebase project is connected yet, so data stays on this device with demo accounts. Never enter real employee data. <b>How to connect: docs/01-firebase-setup.md</b>${environmentName().includes('forced') ? ' <b>Demo is forced by "?env=demo" in the address bar</b> — the connected Test project stays untouched.' : ''}</div></div>`
           : `<div class="banner banner-info">${icon('info', 18)}<div><b>${esc(environmentName())} environment.</b> Sign in with the account your administrator created for you.</div></div>`}
 
         <div id="revoked-banner" style="display:none"></div>
@@ -85,6 +85,11 @@ export function render(root, ctx) {
             ${icon('download', 14)} Crew import template (CSV) — no sign-in needed
           </a>
           <p class="text-xs text-muted" style="margin:.4rem 0 0">The administrator can bulk-import crew from this file after signing in.</p>
+          ${ACTIVE_ENV === 'test' ? `
+          <a class="btn btn-primary btn-sm btn-block" style="margin-top:.9rem" href="./?env=demo"
+             title="Open the app with demo accounts and device-only data — nothing is written to the Test project">
+            ${icon('users', 14)} Trying the app? Use Demo mode (demo accounts)
+          </a>` : ''}
         </form>
 
         ${demo ? `
